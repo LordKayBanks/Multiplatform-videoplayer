@@ -72,10 +72,6 @@ const playlist = {
       delayId = setTimeout(() => playlist.play(index, 0), delay);
       return;
     }
-    //  if (video.src) {
-    //    URL.revokeObjectURL(video.src);
-    //  }
-
     playlist.index = index === -1 ? 0 : index % playlist.entries.length;
     if (playlist.index + 1 === playlist.entries.length) {
       next.classList.add('disabled');
@@ -106,18 +102,13 @@ const playlist = {
 
     const s = playlist.entries[playlist.index];
     //  console.log('🚀 ~ file: playlist.js ~ line 108 ~ play ~ s ', s);
-
-    //  if (s.name) {
-    //    const u = URL.createObjectURL(s);
-    //    video.src = u;
     if (s.name) {
       video.src = s.path;
     } else {
       video.src = s.src;
     }
     video.playbackRate = parseFloat(speed.dataset.mode);
-    //  document.title = (s.name || s.src) + ' :: ' + chrome.runtime.getManifest().name;
-    document.title = (s.name || s.src) + ' :: ';
+    document.title = s.name || s.src;
     navigator.mediaSession.metadata = new MediaMetadata({
       title: document.title,
     });
@@ -154,7 +145,7 @@ const playlist = {
   },
   cueVideo(files) {
     playlist.entries.push(...files);
-    const temp = playlist.entries.map(({ name, path, type, e }) => ({ name, path, type, e }));
+    const temp = playlist.entries.map(({ name, path, type, e }) => ({ name, path, type }));
     localStorage.setItem('playlist', JSON.stringify(temp));
     //  console.log('🚀JSON.stringify(temp)', JSON.parse(temp));
     //  console.log('🚀playlist.entries', playlist.entries);
@@ -215,8 +206,8 @@ video.addEventListener('loadedmetadata', () => {
   const h = Math.floor(d / 3600);
   const m = Math.floor((d % 3600) / 60);
   const s = Math.floor((d % 3600) % 60);
-  //   video.origin.e.querySelector('span[data-id=duration]').textContent =
-  //     ('0' + h).substr(-2) + ':' + ('0' + m).substr(-2) + ':' + ('0' + s).substr(-2);
+  video.origin.e.querySelector('span[data-id=duration]').textContent =
+    ('0' + h).substr(-2) + ':' + ('0' + m).substr(-2) + ':' + ('0' + s).substr(-2);
 });
 
 document.getElementById('p-button').addEventListener('change', (e) => {
