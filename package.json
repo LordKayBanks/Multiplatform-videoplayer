@@ -28,7 +28,8 @@
     "e2e": "mocha temp/e2e.js --require source-map-support/register",
     "test": "npm run unit && npm run e2e",
     "start": "node build/start.js",
-    "release": "npm test && webpack --config=build/webpack.app.config.js --env=production && electron-builder"
+    "release": "npm test && webpack --config=build/webpack.app.config.js --env=production && electron-builder",
+    "build": "webpack --config=build/webpack.app.config.js --env=production && electron-builder"
   },
   "dependencies": {
     "fs-jetpack": "^4.1.0"

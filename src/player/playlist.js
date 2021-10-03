@@ -339,7 +339,7 @@ root.addEventListener('click', (e) => {
     if (index !== playlist.index) {
       playlist.play(index);
       if (isReviewing) {
-        setupReviewMode();
+        setupReviewMode({});
       }
     }
   }
@@ -348,14 +348,18 @@ root.addEventListener('click', (e) => {
 previous.addEventListener('click', () => {
   playlist.play(playlist.index - 1);
   if (isReviewing) {
-    setupReviewMode();
+    setTimeout(() => {
+      setupReviewMode({});
+    }, 1000);
   }
 });
 
 next.addEventListener('click', () => {
   playlist.play(playlist.index + 1);
   if (isReviewing) {
-    setupReviewMode();
+    setTimeout(() => {
+      setupReviewMode({});
+    }, 1000);
   }
 });
 
