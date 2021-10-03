@@ -12,8 +12,8 @@ toast.style = `
   top: 10px;
   left: 10px;
   white-space: pre;
-  font-size:16px;
-  padding:8px;
+  font-size:12px;
+  padding:6px;
   background-color: rgba(0,0,0,0.6);
   color:white;
   visibility: hidden;

@@ -4,9 +4,9 @@ const video = document.querySelector('video');
 
 // persist
 let prefs = {};
-prefs.repeat = localStorage.getItem('repeat') ?? 'no-repeat';
-prefs.volume = localStorage.getItem('volume') ?? 0.8;
-prefs.speed = localStorage.getItem('speed') ?? 4.0;
+prefs.repeat = localStorage.getItem('repeat') ?? 'repeat-all';
+prefs.volume = localStorage.getItem('volume') ?? 1;
+prefs.speed = localStorage.getItem('speed') ?? 2.5;
 
 document.getElementById('repeat').dataset.mode = prefs.repeat;
 document.getElementById('speed').dataset.mode = prefs.speed + 'x';
