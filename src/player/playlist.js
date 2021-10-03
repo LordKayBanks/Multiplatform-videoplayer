@@ -1,4 +1,9 @@
-import { setupForStandardTrackingMode, trackingMode, updateSpeedIcon } from './keyboard.js';
+import {
+  setupForStandardTrackingMode,
+  studyStatisticsTracker,
+  trackingMode,
+  updateSpeedIcon,
+} from './keyboard.js';
 
 /* global MediaMetadata */
 import notify from './notify.js';
@@ -32,6 +37,8 @@ const scrollIntoView = (e) => {
 };
 
 let isReviewing = false;
+let unsubscribeToReview = null;
+let unsubscribeSkipOnPlayError = null;
 const stats = new WeakMap();
 let delayId;
 let state = -1; // current playing state
@@ -127,7 +134,14 @@ export const playlist = {
     //    video.currentTime = currentTime;
     //  }
     video.origin = s;
-    video.play().catch((e) => notify.display(e.message, 2000));
+    clearTimeout(unsubscribeSkipOnPlayError);
+    video.play().catch((e) => {
+      notify.display(e.message, 2000);
+      unsubscribeSkipOnPlayError = setTimeout(
+        () => playlist.play(playlist.index + 1, playlist.configs.delay),
+        5000
+      );
+    });
     window.setTimeout(() => video.focus(), 100);
   },
   stopVideo() {
@@ -190,6 +204,83 @@ export const playlist = {
 };
 playlist.onStateChange.cs = [];
 
+export function setupReviewMode(activate = true) {
+  if (!activate) {
+    clearInterval(unsubscribeToReview);
+    return notify.display('Review: Stopped!');
+  }
+
+  if (trackingModeElement.dataset.mode === 'active') {
+    trackingModeElement.dataset.mode = 'inactive';
+    trackingMode(null, false);
+  }
+  video.currentTime = video.origin.startTime;
+  clearInterval(unsubscribeToReview);
+  watcherForReviewMode();
+}
+
+function watcherForReviewMode() {
+  unsubscribeToReview = setInterval(() => {
+    if (video.currentTime < video.origin.startTime) {
+      video.currentTime = video.origin.startTime;
+    }
+
+    let loopCurrentSplit = true;
+    if (loopCurrentSplit && video.currentTime >= video.origin.endTime - 5) {
+      video.currentTime = video.origin.startTime;
+      studyStatisticsTracker();
+    }
+
+    if (video.currentTime >= video.origin.endTime - 5) {
+      playlist.play(playlist.index + 1);
+      video.currentTime = video.origin.startTime;
+      clearInterval(unsubscribeToReview);
+      watcherForReviewMode();
+      // ===================
+      //  video.currentTime = video.origin.startTime;
+      //  setSpeed(speedTOptions[speedTracker]);
+      //  studyStatisticsTracker();
+      //   notifyReplayStatus();
+    }
+  }, 1000);
+}
+
+const MINIMUM_REVIEW_COUNT = 5;
+function sortReviews(reviews) {
+  return Object.keys(reviews)
+    .map((key) => reviews[key])
+    .map((review) => {
+      let updatedReview = Object.keys(review.replayHistory).map((key) => ({
+        //  [key]: review.replayHistory[key],
+        replayCount: review.replayHistory[key].count,
+        startTime: review.replayHistory[key].startTime,
+        endTime: review.replayHistory[key].endTime,
+        split: key,
+      }));
+      return updatedReview.map((split) => {
+        return { ...review, ...split };
+      });
+    })
+    .flat()
+    .sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount)
+    .filter((review) => review.replayCount >= MINIMUM_REVIEW_COUNT);
+  //  .sort((reviewA, reviewB) => reviewA.path.localeCompare(reviewB.path))
+
+  //   .sort((reviewA, reviewB) => {
+  //     return (
+  //       reviewB.replayCount - reviewA.replayCount || reviewA.path.localeCompare(reviewB.path)
+  //     );
+  //     //  const res = reviewB.replayCount - reviewA.replayCount;
+  //     //  if (res !== 0) {
+  //     //    return res;
+  //     //  } else {
+  //     //    return reviewA.path.localeCompare(reviewB.path);
+  //     //  }
+  //   });
+}
+
+// =====================================================
+// =====================================================
 video.addEventListener('timeupdate', () => {
   stats.set(video.origin, video.currentTime);
 });
@@ -237,8 +328,7 @@ root.addEventListener('click', (e) => {
     if (index !== playlist.index) {
       playlist.play(index);
       if (isReviewing) {
-        clearInterval(unsubscribeToReview);
-        watcherForReviewMode();
+        setupReviewMode();
       }
     }
   }
@@ -262,7 +352,7 @@ reviewModeElement.addEventListener('click', (e) => {
   const value = e.target.dataset.mode;
   if (value === 'active') {
     e.target.dataset.mode = 'inactive';
-    clearInterval(unsubscribeToReview);
+    setupReviewMode(false);
     isReviewing = false;
   } else {
     e.target.dataset.mode = 'active';
@@ -275,6 +365,7 @@ trackingModeElement.addEventListener('click', (e) => {
   const value = e.target.dataset.mode;
   if (value === 'active') {
     e.target.dataset.mode = 'inactive';
+    trackingMode(null, false);
   } else {
     e.target.dataset.mode = 'active';
     setupForStandardTrackingMode();
@@ -312,63 +403,3 @@ boost.addEventListener('click', (e) => {
 
 document.addEventListener('DOMContentLoaded', playlist.loadPlaylistFromStorage);
 export default playlist;
-
-function setupReviewMode() {
-  video.currentTime = video.origin.startTime;
-  clearInterval(unsubscribeToReview);
-  watcherForReviewMode();
-}
-
-let unsubscribeToReview = null;
-function watcherForReviewMode() {
-  unsubscribeToReview = setInterval(() => {
-    if (video.currentTime < video.origin.startTime) {
-      video.currentTime = video.origin.startTime;
-    }
-    if (video.currentTime > video.origin.endTime) {
-      playlist.play(playlist.index + 1);
-      video.currentTime = video.origin.startTime;
-      clearInterval(unsubscribeToReview);
-      watcherForReviewMode();
-      // ===================
-      //  video.currentTime = video.origin.startTime;
-      //  setSpeed(speedTOptions[speedTracker]);
-      //  studyStatisticsTracker();
-      //   notifyReplayStatus();
-    }
-  }, 1000);
-}
-
-const MINIMUM_REVIEW_COUNT = 5;
-function sortReviews(reviews) {
-  return Object.keys(reviews)
-    .map((key) => reviews[key])
-    .map((review) => {
-      let updatedReview = Object.keys(review.replayHistory).map((key) => ({
-        //  [key]: review.replayHistory[key],
-        replayCount: review.replayHistory[key].count,
-        startTime: review.replayHistory[key].startTime,
-        endTime: review.replayHistory[key].endTime,
-        split: key,
-      }));
-      return updatedReview.map((split) => {
-        return { ...review, ...split };
-      });
-    })
-    .flat()
-    .sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount)
-    .filter((review) => review.replayCount >= MINIMUM_REVIEW_COUNT);
-  //  .sort((reviewA, reviewB) => reviewA.path.localeCompare(reviewB.path))
-
-  //   .sort((reviewA, reviewB) => {
-  //     return (
-  //       reviewB.replayCount - reviewA.replayCount || reviewA.path.localeCompare(reviewB.path)
-  //     );
-  //     //  const res = reviewB.replayCount - reviewA.replayCount;
-  //     //  if (res !== 0) {
-  //     //    return res;
-  //     //  } else {
-  //     //    return reviewA.path.localeCompare(reviewB.path);
-  //     //  }
-  //   });
-}

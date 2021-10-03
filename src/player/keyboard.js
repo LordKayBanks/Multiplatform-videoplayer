@@ -1,5 +1,6 @@
+import { playlist, setupReviewMode } from './playlist.js';
+
 import notify from './notify.js';
-import { playlist } from './playlist.js';
 
 // const rangeBasic = [2.5, 3.25, 2.5, 3.25, 3, 3.5, 3, 3.5]; /*3.0*/
 const rangeBasic = [
@@ -110,7 +111,7 @@ function notifyReplayStatus() {
   );
 }
 
-function studyStatisticsTracker() {
+export function studyStatisticsTracker() {
   const currentSplit = parseInt(replayConfig.endPosition / replayConfig.interval);
   let reviews = JSON.parse(localStorage.getItem('reviews'));
   const reviewExists = !!reviews;
@@ -168,6 +169,12 @@ function playPause() {
 }
 
 export function setupForStandardTrackingMode() {
+  const reviewModeElement = document.getElementById('reviewMode');
+  if (reviewModeElement.dataset.mode === 'active') {
+    reviewModeElement.dataset.mode = 'inactive';
+    setupReviewMode(false);
+  }
+
   let videoSplit = getVideoSplitFactor();
   replayConfig.interval = parseInt(video.duration / videoSplit);
   replayConfig.startOffset = convertToNearestX(video.currentTime, replayConfig.interval);
@@ -185,9 +192,6 @@ export function trackingMode(offSet, renormalize = true) {
   if (replayConfig.unsubscribe) {
     clearInterval(replayConfig.unsubscribe);
     replayConfig.unsubscribe = null;
-
-    // setSpeed(replayConfig.cachedPlaybackRate || 3);
-    // video.currentTime = replayConfig.endPosition;
     notify.display('Replay: Stopped!');
   } else {
     if (renormalize) {
@@ -206,20 +210,16 @@ export function trackingMode(offSet, renormalize = true) {
     video.duration < minDurationForVideoSplitFactor
       ? (video.currentTime = 0)
       : (video.currentTime = parseInt(replayConfig.startPosition));
-    //  video.currentTime = parseInt(replayConfig.startPosition);
     replayConfig.unsubscribe = setInterval(() => {
       if (
         video.currentTime >= replayConfig.endPosition - 5 ||
         video.currentTime < replayConfig.startPosition
       ) {
         video.currentTime = replayConfig.startPosition;
-        //   const speedTOptions = [2, 3.5, 10];
         const speedTOptions = [2, 3, 10];
         speedTracker = (speedTracker + 1) % speedTOptions.length;
         setSpeed(speedTOptions[speedTracker]);
-        // ===================
         studyStatisticsTracker();
-        //   notifyReplayStatus();
       }
     }, 1000);
 
