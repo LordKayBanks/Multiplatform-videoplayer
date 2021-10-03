@@ -120,10 +120,10 @@ export const playlist = {
     }
     s.e.classList.add('active');
     scrollIntoView(s.e);
-    const currentTime = stats.get(s);
-    if (currentTime !== undefined) {
-      video.currentTime = currentTime;
-    }
+    //  const currentTime = stats.get(s);
+    //  if (currentTime !== undefined) {
+    //    video.currentTime = currentTime;
+    //  }
     video.origin = s;
     video.play().catch((e) => notify.display(e.message, 2000));
     window.setTimeout(() => video.focus(), 100);
