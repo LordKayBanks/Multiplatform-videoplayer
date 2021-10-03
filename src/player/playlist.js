@@ -1,6 +1,7 @@
 /* global MediaMetadata */
 import notify from './notify.js';
 import { updateSpeedIcon } from './keyboard.js';
+let isReviewing = false;
 
 const root = document.getElementById('playlist');
 const video = document.querySelector('video');
@@ -133,6 +134,7 @@ export const playlist = {
   loadReviews() {
     let reviews = JSON.parse(localStorage.getItem('reviews'));
     if (!!reviews) {
+      isReviewing = !isReviewing;
       reviews = sortReviews(reviews);
       playlist.entries = [];
       root.innerHTML = '';
@@ -140,8 +142,7 @@ export const playlist = {
       playlist.play(0);
       notify.display(`${reviews.length} Reviews Loaded!`);
 
-      video.currentTime = video.origin.startTime;
-      watcherForReviewMode();
+      setupReviewMode();
     } else notify.display('no reviews available!');
   },
   loadPlaylistFromStorage() {
@@ -233,13 +234,27 @@ root.addEventListener('click', (e) => {
     const index = playlist.entries.indexOf(li.file);
     if (index !== playlist.index) {
       playlist.play(index);
+      if (isReviewing) {
+        clearInterval(unsubscribeToReview);
+        watcherForReviewMode();
+      }
     }
   }
 });
 
-previous.addEventListener('click', () => playlist.play(playlist.index - 1));
+previous.addEventListener('click', () => {
+  playlist.play(playlist.index - 1);
+  if (isReviewing) {
+    setupReviewMode();
+  }
+});
 
-next.addEventListener('click', () => playlist.play(playlist.index + 1));
+next.addEventListener('click', () => {
+  playlist.play(playlist.index + 1);
+  if (isReviewing) {
+    setupReviewMode();
+  }
+});
 
 repeat.addEventListener('click', (e) => {
   const modes = ['no-repeat', 'repeat-all', 'repeat-one'];
@@ -272,6 +287,12 @@ boost.addEventListener('click', (e) => {
 document.addEventListener('DOMContentLoaded', playlist.loadPlaylistFromStorage);
 export default playlist;
 
+function setupReviewMode() {
+  video.currentTime = video.origin.startTime;
+  clearInterval(unsubscribeToReview);
+  watcherForReviewMode();
+}
+
 let unsubscribeToReview = null;
 function watcherForReviewMode() {
   unsubscribeToReview = setInterval(() => {
@@ -289,6 +310,7 @@ function watcherForReviewMode() {
   }, 1000);
 }
 
+const MINIMUM_REVIEW_COUNT = 5;
 function sortReviews(reviews) {
   return Object.keys(reviews)
     .map((key) => reviews[key])
@@ -305,7 +327,8 @@ function sortReviews(reviews) {
       });
     })
     .flat()
-    .sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount);
+    .sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount)
+    .filter((review) => review.replayCount >= MINIMUM_REVIEW_COUNT);
   //  .sort((reviewA, reviewB) => reviewA.path.localeCompare(reviewB.path))
 
   //   .sort((reviewA, reviewB) => {
