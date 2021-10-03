@@ -132,3 +132,40 @@ const doubled = Object.keys(test)
 //     //  }
 //   });
 console.log('doubled', doubled);
+
+// document.querySelector('#movie_player > div.ytp-pause-overlay.ytp-scroll-min').hidden = true;
+// document.querySelector(
+//   'button.ytp-button.ytp-copylink-button.ytp-show-copylink-title.ytp-copylink-button-visible'
+// ).hidden = true;
+// const titleElement = document.querySelector(
+//   '.ytp-title > div'
+// ).hidden = true;
+
+// const myVideo = document.getElementsByClassName('video-stream html5-main-video')[0];
+// myVideo.play();
+// myPlayer.pause();
+setTimeout(() => {
+  setInterval(() => {
+    const myVideo = document.querySelector(
+      '#movie_player > div.html5-video-container > video'
+    );
+    if (myVideo.currentTime >= 120 || myVideo.currentTime < 50) {
+      myVideo.currentTime = 60;
+      const title = document.querySelector('.ytp-title > div').textContent;
+      console.info('🚀 title', title);
+    }
+  }, 1000);
+}, 5000);
+
+// //First get the video
+// var myPlayer = document.getElementsByClassName('video-stream html5-main-video')[0];
+// //Now you can:
+// //Play video with
+// myPlayer.play();
+// //Pause video with
+// myPlayer.pause();
+// //Go to particular time with
+// myPlayer.currentTime = 40;
+// //will take your video to 40 seconds.
+// //To get current time just use
+// myPlayer.currentTime;

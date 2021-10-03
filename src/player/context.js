@@ -2,7 +2,7 @@ const filters = {};
 let c;
 
 const once = () => {
-  c = new(window.AudioContext || window.webkitAudioContext);
+  c = new (window.AudioContext || window.webkitAudioContext)();
   const video = document.querySelector('video');
   const source = c.createMediaElementSource(video);
   const gain = c.createGain();
@@ -20,7 +20,7 @@ const context = {
   },
   get context() {
     return c;
-  }
+  },
 };
 
 export default context;

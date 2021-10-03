@@ -14,11 +14,12 @@ const next = document.getElementById('next');
 const previous = document.getElementById('previous');
 const reviewModeElement = document.getElementById('reviewMode');
 const trackingModeElement = document.getElementById('trackingMode');
+const inputText = document.getElementById('external-link');
 const repeat = document.getElementById('repeat');
 const speed = document.getElementById('speed');
 const boost = document.getElementById('boost');
 
-video.addEventListener('blur', () => video.focus());
+// video.addEventListener('blur', () => video.focus());
 video.addEventListener('canplay', () => {
   document.body.dataset.type = video
     .captureStream()
@@ -142,7 +143,7 @@ export const playlist = {
         5000
       );
     });
-    window.setTimeout(() => video.focus(), 100);
+    //  window.setTimeout(() => video.focus(), 100);
   },
   stopVideo() {
     video.pause();
@@ -158,7 +159,7 @@ export const playlist = {
       playlist.play(0);
       setTimeout(() => notify.display(`${reviews.length} Reviews Loaded!`), 5000);
 
-      setupReviewMode();
+      // setupReviewMode();
     } else notify.display('no reviews available!');
   },
   loadPlaylistFromStorage() {
@@ -204,7 +205,7 @@ export const playlist = {
 };
 playlist.onStateChange.cs = [];
 
-export function setupReviewMode(activate = true) {
+export function setupReviewMode({ activate = true, loopCurrentSplit = false }) {
   if (!activate) {
     clearInterval(unsubscribeToReview);
     return notify.display('Review: Stopped!');
@@ -216,31 +217,34 @@ export function setupReviewMode(activate = true) {
   }
   video.currentTime = video.origin.startTime;
   clearInterval(unsubscribeToReview);
-  watcherForReviewMode();
+
+  loopCurrentSplit && notify.display(`Reviews: Looping`);
+  watcherForReviewMode(loopCurrentSplit);
 }
 
-function watcherForReviewMode() {
+function watcherForReviewMode(loopCurrentSplit = false) {
   unsubscribeToReview = setInterval(() => {
     if (video.currentTime < video.origin.startTime) {
       video.currentTime = video.origin.startTime;
     }
 
-    let loopCurrentSplit = true;
-    if (loopCurrentSplit && video.currentTime >= video.origin.endTime - 5) {
-      video.currentTime = video.origin.startTime;
-      studyStatisticsTracker();
-    }
-
-    if (video.currentTime >= video.origin.endTime - 5) {
-      playlist.play(playlist.index + 1);
-      video.currentTime = video.origin.startTime;
-      clearInterval(unsubscribeToReview);
-      watcherForReviewMode();
-      // ===================
-      //  video.currentTime = video.origin.startTime;
-      //  setSpeed(speedTOptions[speedTracker]);
-      //  studyStatisticsTracker();
-      //   notifyReplayStatus();
+    if (loopCurrentSplit) {
+      if (video.currentTime >= video.origin.endTime - 5) {
+        video.currentTime = video.origin.startTime;
+        studyStatisticsTracker();
+      }
+    } else {
+      if (video.currentTime >= video.origin.endTime - 5) {
+        playlist.play(playlist.index + 1);
+        video.currentTime = video.origin.startTime;
+        clearInterval(unsubscribeToReview);
+        watcherForReviewMode();
+        // ===================
+        //  video.currentTime = video.origin.startTime;
+        //  setSpeed(speedTOptions[speedTracker]);
+        //  studyStatisticsTracker();
+        //   notifyReplayStatus();
+      }
     }
   }, 1000);
 }
@@ -318,7 +322,14 @@ video.addEventListener('loadedmetadata', () => {
 });
 
 document.getElementById('p-button').addEventListener('change', (e) => {
-  playlist[e.target.checked ? 'open' : 'close']();
+  //   playlist[e.target.checked ? 'open' : 'close']();
+  if (e.target.checked) {
+    inputText.classList.remove('input-text');
+    return playlist['open']();
+  } else {
+    inputText.classList.add('input-text');
+    return playlist['close']();
+  }
 });
 
 root.addEventListener('click', (e) => {
@@ -349,15 +360,21 @@ next.addEventListener('click', () => {
 });
 
 reviewModeElement.addEventListener('click', (e) => {
-  const value = e.target.dataset.mode;
+  const modes = ['active', 'loop', 'inactive'];
+  let index = (modes.indexOf(e.target.dataset.mode) + 1) % modes.length;
+  reviewModeElement.dataset.mode = modes[index];
+  const value = modes[index];
   if (value === 'active') {
-    e.target.dataset.mode = 'inactive';
-    setupReviewMode(false);
-    isReviewing = false;
-  } else {
-    e.target.dataset.mode = 'active';
     playlist.loadReviews();
+    setupReviewMode({ activate: true });
     isReviewing = true;
+  } else if (value === 'loop') {
+    //  playlist.loadReviews();
+    setupReviewMode({ loopCurrentSplit: true });
+    isReviewing = true;
+  } else if (value === 'inactive') {
+    setupReviewMode({ activate: false });
+    isReviewing = false;
   }
 });
 

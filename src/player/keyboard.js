@@ -170,9 +170,9 @@ function playPause() {
 
 export function setupForStandardTrackingMode() {
   const reviewModeElement = document.getElementById('reviewMode');
-  if (reviewModeElement.dataset.mode === 'active') {
+  if (reviewModeElement.dataset.mode !== 'inactive') {
     reviewModeElement.dataset.mode = 'inactive';
-    setupReviewMode(false);
+    setupReviewMode({ activate: false });
   }
 
   let videoSplit = getVideoSplitFactor();
@@ -424,15 +424,6 @@ function handleMultipleKeyPress(evt) {
 const rules = [
   {
     condition(meta, code, shift) {
-      return code === 'Digit1';
-    },
-    action(e) {
-      playlist.loadReviews();
-      return true;
-    },
-  },
-  {
-    condition(meta, code, shift) {
       if (code === 'Minus' || code === 'Equal' || code === 'Digit9' || code === 'Digit0') {
         return true;
       }
@@ -477,7 +468,7 @@ const rules = [
   {
     condition(meta, code, shift) {
       return (
-        code === 'Enter' || code === 'Backslash' || code === 'Quote' || code === 'Semicolon'
+        code === 'Digit1' || code === 'Backslash' || code === 'Quote' || code === 'Semicolon'
       );
     },
     action(e) {
@@ -486,7 +477,7 @@ const rules = [
         trackingMode(null, false);
       } else if (e.code === 'Backslash') {
         trackingMode(parseInt(video.duration));
-      } else if (e.code === 'Enter') {
+      } else if (e.code === 'Digit1') {
         notifyReplayStatus();
       }
       return true;
@@ -768,39 +759,39 @@ const rules = [
       return true;
     },
   },
-  {
-    condition(meta, code) {
-      return code === 'Space';
-    },
-    action(e) {
-      e.preventDefault();
-      let thisKeypressTime = new Date();
-      const timeSinceSpaceKeyPressed = thisKeypressTime - alertConfig.lastKeypressTime;
-      if (timeSinceSpaceKeyPressed >= alertConfig.delta) {
-        //   check for single-press of Spacebar
-        playPause();
-      } else {
-        //   check for single-press of Spacebar
-        let message;
-        if (alertConfig.speedMode == 0) {
-          message = 'Speedmode: Slowmode Activated';
-          alertConfig.speedMode = 1;
-          alertAtKeyMoments();
-        } else if (alertConfig.speedMode == 1) {
-          message = 'Speedmode: Fastmode Activated';
-          alertConfig.speedMode = 2;
-          alertAtKeyMoments();
-        } else if (alertConfig.speedMode == 2) {
-          message = 'Speedmode: OFF!';
-          alertConfig.speedMode = 0;
-          alertAtKeyMoments();
-        }
-        notify.display(message);
-      }
-      alertConfig.lastKeypressTime = thisKeypressTime;
-      return true;
-    },
-  },
+  //   {
+  //     condition(meta, code) {
+  //       return code === 'Space';
+  //     },
+  //     action(e) {
+  //       e.preventDefault();
+  //       let thisKeypressTime = new Date();
+  //       const timeSinceSpaceKeyPressed = thisKeypressTime - alertConfig.lastKeypressTime;
+  //       if (timeSinceSpaceKeyPressed >= alertConfig.delta) {
+  //         //   check for single-press of Spacebar
+  //         playPause();
+  //       } else {
+  //         //   check for single-press of Spacebar
+  //         let message;
+  //         if (alertConfig.speedMode == 0) {
+  //           message = 'Speedmode: Slowmode Activated';
+  //           alertConfig.speedMode = 1;
+  //           alertAtKeyMoments();
+  //         } else if (alertConfig.speedMode == 1) {
+  //           message = 'Speedmode: Fastmode Activated';
+  //           alertConfig.speedMode = 2;
+  //           alertAtKeyMoments();
+  //         } else if (alertConfig.speedMode == 2) {
+  //           message = 'Speedmode: OFF!';
+  //           alertConfig.speedMode = 0;
+  //           alertAtKeyMoments();
+  //         }
+  //         notify.display(message);
+  //       }
+  //       alertConfig.lastKeypressTime = thisKeypressTime;
+  //       return true;
+  //     },
+  //   },
 ];
 window.addEventListener('keyup', handleMultipleKeyPress);
 window.addEventListener('keydown', handleMultipleKeyPress);

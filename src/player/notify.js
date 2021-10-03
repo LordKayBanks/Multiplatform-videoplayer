@@ -9,7 +9,7 @@ colorText.style = `
 
 toast.style = `
   position: fixed;
-  top: 10px;
+  top: 30px;
   left: 10px;
   white-space: pre;
   font-size:12px;

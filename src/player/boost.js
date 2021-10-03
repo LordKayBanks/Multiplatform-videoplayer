@@ -5,9 +5,7 @@ const video = document.querySelector('video');
 
 Object.defineProperty(video, 'boost', {
   get() {
-    return context.filters.gain
-      ? context.filters.gain.gain.value
-      : 1;
+    return context.filters.gain ? context.filters.gain.gain.value : 1;
   },
   set(v) {
     if (context.filters.gain) {

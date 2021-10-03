@@ -94,4 +94,11 @@ container.addEventListener('dblclick', (e) => {
   }
 });
 
+document.getElementById('external-link').addEventListener('change', (e) => {
+  e.preventDefault();
+  const video = document.querySelector('video');
+  video.src = e.target.value;
+  console.log(e.target.value);
+});
+
 export default drag;
