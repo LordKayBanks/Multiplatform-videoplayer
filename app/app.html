@@ -7,13 +7,7 @@
   </head>
   <body data-state="-1">
     <div id="video-container">
-      <!-- <video>
-        <source
-          src="file:////Users/kaybanks/Downloads/~temp/Udemy- React, React Redux and Redux Saga- Master React StateHooks 2021-2 [6h-55m]/06 React-Redux [0h-25m]/041 React Redux combining our Redux with our React components.mp4"
-          type="video/mp4"
-        />
-      </video> -->
-      <video></video>
+      <video controls></video>
     </div>
     <div id="toolbar">
       <ul id="playlist"></ul>
@@ -40,9 +34,9 @@
         </label>
 
         <label
-          id="replaycut"
-          data-mode="no-replay"
-          title="Replay Mode"
+          id="reviewMode"
+          data-mode="inactive"
+          title="Review Mode"
         >
             <svg width="30" height="22" viewBox="0 0 48 48">
                   <text
@@ -50,9 +44,26 @@
                   y="50%"
                   alignment-baseline="middle"
                   text-anchor="middle"
-                  font-size="24"
+                  font-size="34"
                   >
                   R
+                  </text>
+               </svg>
+        </label>
+        <label
+          id="trackingMode"
+          data-mode='inactive'
+          title="Tracking Mode"
+        >
+            <svg width="30" height="22" viewBox="0 0 48 48">
+                  <text
+                  x="50%"
+                  y="50%"
+                  alignment-baseline="middle"
+                  text-anchor="middle"
+                  font-size="34"
+                  >
+                  T
                   </text>
                </svg>
         </label>

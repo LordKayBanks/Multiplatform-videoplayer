@@ -126,6 +126,7 @@ label * {
   pointer-events: none;
 }
 label:hover,
+label[data-mode='active'],
 input[type='checkbox']:checked + label {
   background-color: var(--hover-color);
 }

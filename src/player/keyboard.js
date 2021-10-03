@@ -100,7 +100,7 @@ function notifyReplayStatus() {
 
   notify.display(
     `Video Stats: Split watch count:: ${videoStat ?? 0} times!
-    \r\n\r\nReplay: is ${
+    \r\nReplay: is ${
       !!replayConfig.unsubscribe ? 'ON!:' : 'OFF!:'
     }\r\nStart Time: ${toMinutesandSeconds(
       replayConfig.startPosition
@@ -167,8 +167,14 @@ function playPause() {
   notify.display(`Playback Status:  ${video.paused ? 'PAUSED!' : 'PLAY!'}`);
 }
 
+export function setupForStandardTrackingMode() {
+  let videoSplit = getVideoSplitFactor();
+  replayConfig.interval = parseInt(video.duration / videoSplit);
+  replayConfig.startOffset = convertToNearestX(video.currentTime, replayConfig.interval);
+}
+
 let speedTracker = 2;
-function replayCut(offSet, renormalize = true) {
+export function trackingMode(offSet, renormalize = true) {
   clearTimeout(config.timer);
 
   clearInterval(alertConfig.alertConfigMidwayTime);
@@ -223,7 +229,7 @@ function replayCut(offSet, renormalize = true) {
 
 function toggleSpeed(intervalInSeconds = 10, isFAST = false) {
   alertConfig.speedMode = 0;
-  alertMidWay();
+  alertAtKeyMoments();
   //   ==============>
 
   let index = 0;
@@ -264,7 +270,7 @@ function getSpeed() {
   return video.playbackRate;
 }
 
-function alertMidWay() {
+function alertAtKeyMoments() {
   clearTimeout(config.timer);
 
   clearInterval(alertConfig.alertConfigMidwayTime);
@@ -291,7 +297,7 @@ function alertMidWay() {
       const remainTime = video.duration - _25PercentTime; //25%
       notify.display(
         `Alert:\r\nJust Past 25%`,
-        `\r\n\r\n[${toMinutesandSeconds(remainTime, false)}]`
+        `\r\n[${toMinutesandSeconds(remainTime, false)}]`
       );
       clearInterval(alertConfig.alertConfigOneThirdTime);
     }
@@ -306,7 +312,7 @@ function alertMidWay() {
       const remainTime = video.duration - midwayTime; //40%
       notify.display(
         `Alert:\r\nJust Past 50%`,
-        `\r\n\r\n[${toMinutesandSeconds(remainTime, false)}]`
+        `\r\n[${toMinutesandSeconds(remainTime, false)}]`
       );
       clearInterval(alertConfig.alertConfigMidwayTime);
     }
@@ -324,7 +330,7 @@ function alertMidWay() {
       const remainTime = video.duration - _75PercentTime; //25%
       notify.display(
         `Alert:\r\nJust Past 75%`,
-        `\r\n\r\n[${toMinutesandSeconds(remainTime, false)}]`
+        `\r\n[${toMinutesandSeconds(remainTime, false)}]`
       );
       clearInterval(alertConfig.alertConfigTwoThirdTime);
     }
@@ -475,25 +481,11 @@ const rules = [
       );
     },
     action(e) {
-      let videoSplit = getVideoSplitFactor();
-
       if (e.code === 'Semicolon') {
-        replayConfig.interval = parseInt(video.duration / videoSplit);
-        replayConfig.startOffset = convertToNearestX(video.currentTime, replayConfig.interval);
-        replayCut(null, false);
-      }
-      // else if (e.code === 'Quote') {
-      // let shortVideoSplit = video.duration < 30 * 60 ? 4 : 8;
-      // let longVideoSplit = video.duration < 30 * 60 ? 2 : 4;
-      //   replayConfig.interval = parseInt(video.duration / longVideoSplit);
-      //   //   replayConfig.interval = convertToNearest30(replayConfig.interval);
-      //   replayConfig.startOffset = convertToNearestX(video.currentTime, replayConfig.interval);
-      //   //   replayConfig.startOffset = convertToNearest30(replayConfig.startOffset);
-      //   replayCut(null, false);
-      //   // replayCut(65);
-      // }
-      else if (e.code === 'Backslash') {
-        replayCut(parseInt(video.duration));
+        setupForStandardTrackingMode();
+        trackingMode(null, false);
+      } else if (e.code === 'Backslash') {
+        trackingMode(parseInt(video.duration));
       } else if (e.code === 'Enter') {
         notifyReplayStatus();
       }
@@ -793,15 +785,15 @@ const rules = [
         if (alertConfig.speedMode == 0) {
           message = 'Speedmode: Slowmode Activated';
           alertConfig.speedMode = 1;
-          alertMidWay();
+          alertAtKeyMoments();
         } else if (alertConfig.speedMode == 1) {
           message = 'Speedmode: Fastmode Activated';
           alertConfig.speedMode = 2;
-          alertMidWay();
+          alertAtKeyMoments();
         } else if (alertConfig.speedMode == 2) {
           message = 'Speedmode: OFF!';
           alertConfig.speedMode = 0;
-          alertMidWay();
+          alertAtKeyMoments();
         }
         notify.display(message);
       }
@@ -815,16 +807,20 @@ window.addEventListener('keydown', handleMultipleKeyPress);
 
 // =================================================
 // =================================================
-// video.addEventListener('seeked', alertMidWay);
+// video.addEventListener('seeked', alertAtKeyMoments);
 video.addEventListener('loadeddata', () => {
   //   clearInterval(replayConfig.unsubscribe);
-  alertMidWay();
+  alertAtKeyMoments();
+
+  //   setupForStandardTrackingMode();
+  //   trackingMode(null, false);
+  //   setTimeout(notifyReplayStatus, 5000);
+
   if (replayConfig.unsubscribe) {
     replayConfig.unsubscribe = null;
-    let videoSplit = getVideoSplitFactor();
-    replayConfig.interval = parseInt(video.duration / videoSplit);
-    replayConfig.startOffset = convertToNearestX(video.currentTime, replayConfig.interval);
-    return replayCut(null, false);
+    setupForStandardTrackingMode();
+    trackingMode(null, false);
+    return setTimeout(notifyReplayStatus, 5000);
   }
   const videoTitle = `${video.origin?.name}  `;
   notify.display(videoTitle, `[${toMinutesandSeconds(video.duration)}]`);

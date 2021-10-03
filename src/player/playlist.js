@@ -1,12 +1,14 @@
+import { setupForStandardTrackingMode, trackingMode, updateSpeedIcon } from './keyboard.js';
+
 /* global MediaMetadata */
 import notify from './notify.js';
-import { updateSpeedIcon } from './keyboard.js';
 
 const root = document.getElementById('playlist');
 const video = document.querySelector('video');
 const next = document.getElementById('next');
 const previous = document.getElementById('previous');
-const replayCut = document.getElementById('replaycut');
+const reviewModeElement = document.getElementById('reviewMode');
+const trackingModeElement = document.getElementById('trackingMode');
 const repeat = document.getElementById('repeat');
 const speed = document.getElementById('speed');
 const boost = document.getElementById('boost');
@@ -140,7 +142,7 @@ export const playlist = {
       root.innerHTML = '';
       playlist.cueVideo(reviews);
       playlist.play(0);
-      notify.display(`${reviews.length} Reviews Loaded!`);
+      setTimeout(() => notify.display(`${reviews.length} Reviews Loaded!`), 5000);
 
       setupReviewMode();
     } else notify.display('no reviews available!');
@@ -256,16 +258,27 @@ next.addEventListener('click', () => {
   }
 });
 
-replayCut.addEventListener('click', (e) => {
-  const modes = ['no-replay', 'replay'];
-  const index = (modes.indexOf(e.target.dataset.mode) + 1) % 2;
-  replayCut.dataset.mode = modes[index];
-  if (modes[index] === 'replay') {
-    playlist.loadReviews();
-    isReviewing = true;
-  } else {
+reviewModeElement.addEventListener('click', (e) => {
+  const value = e.target.dataset.mode;
+  if (value === 'active') {
+    e.target.dataset.mode = 'inactive';
     clearInterval(unsubscribeToReview);
     isReviewing = false;
+  } else {
+    e.target.dataset.mode = 'active';
+    playlist.loadReviews();
+    isReviewing = true;
+  }
+});
+
+trackingModeElement.addEventListener('click', (e) => {
+  const value = e.target.dataset.mode;
+  if (value === 'active') {
+    e.target.dataset.mode = 'inactive';
+  } else {
+    e.target.dataset.mode = 'active';
+    setupForStandardTrackingMode();
+    trackingMode(null, false);
   }
 });
 
