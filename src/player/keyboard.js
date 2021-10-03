@@ -132,13 +132,25 @@ function studyStatisticsTracker() {
       lastReviewDate: Date.now(),
     };
   } else {
-    if (review.replayHistory[`split-${currentSplit}`]?.count) {
+    if (!review.replayHistory[`split-${currentSplit}`]) {
+      review.replayHistory[`split-${currentSplit}`] = {
+        count: 1,
+        startTime: replayConfig.startPosition,
+        endTime: replayConfig.endPosition,
+      };
+    } else {
       review.replayHistory[`split-${currentSplit}`].count =
         review.replayHistory[`split-${currentSplit}`].count + 1;
-    } else {
-      review.replayHistory[`split-${currentSplit}`].count = 1;
     }
     review.lastReviewDate = Date.now();
+
+    //   if (review.replayHistory[`split-${currentSplit}`]?.count) {
+    //     review.replayHistory[`split-${currentSplit}`].count =
+    //       review.replayHistory[`split-${currentSplit}`].count + 1;
+    //   } else {
+    //     review.replayHistory[`split-${currentSplit}`]?.count = 1;
+    //   }
+    //   review.lastReviewDate = Date.now();
   }
 
   updatedReview[video.origin?.path] = { ...review };

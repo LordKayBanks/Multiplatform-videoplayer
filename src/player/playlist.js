@@ -1,12 +1,12 @@
 /* global MediaMetadata */
 import notify from './notify.js';
 import { updateSpeedIcon } from './keyboard.js';
-let isReviewing = false;
 
 const root = document.getElementById('playlist');
 const video = document.querySelector('video');
 const next = document.getElementById('next');
 const previous = document.getElementById('previous');
+const replayCut = document.getElementById('replaycut');
 const repeat = document.getElementById('repeat');
 const speed = document.getElementById('speed');
 const boost = document.getElementById('boost');
@@ -29,6 +29,7 @@ const scrollIntoView = (e) => {
   }
 };
 
+let isReviewing = false;
 const stats = new WeakMap();
 let delayId;
 let state = -1; // current playing state
@@ -134,7 +135,6 @@ export const playlist = {
   loadReviews() {
     let reviews = JSON.parse(localStorage.getItem('reviews'));
     if (!!reviews) {
-      isReviewing = !isReviewing;
       reviews = sortReviews(reviews);
       playlist.entries = [];
       root.innerHTML = '';
@@ -256,6 +256,19 @@ next.addEventListener('click', () => {
   }
 });
 
+replayCut.addEventListener('click', (e) => {
+  const modes = ['no-replay', 'replay'];
+  const index = (modes.indexOf(e.target.dataset.mode) + 1) % 2;
+  replayCut.dataset.mode = modes[index];
+  if (modes[index] === 'replay') {
+    playlist.loadReviews();
+    isReviewing = true;
+  } else {
+    clearInterval(unsubscribeToReview);
+    isReviewing = false;
+  }
+});
+
 repeat.addEventListener('click', (e) => {
   const modes = ['no-repeat', 'repeat-all', 'repeat-one'];
   const index = (modes.indexOf(e.target.dataset.mode) + 1) % 3;
@@ -296,6 +309,9 @@ function setupReviewMode() {
 let unsubscribeToReview = null;
 function watcherForReviewMode() {
   unsubscribeToReview = setInterval(() => {
+    if (video.currentTime < video.origin.startTime) {
+      video.currentTime = video.origin.startTime;
+    }
     if (video.currentTime > video.origin.endTime) {
       playlist.play(playlist.index + 1);
       video.currentTime = video.origin.startTime;
