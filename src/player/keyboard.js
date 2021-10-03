@@ -1,4 +1,5 @@
 import notify from './notify.js';
+import { playlist } from './playlist.js';
 
 // const rangeBasic = [2.5, 3.25, 2.5, 3.25, 3, 3.5, 3, 3.5]; /*3.0*/
 const rangeBasic = [
@@ -35,7 +36,7 @@ const alertConfig = {
   alertConfigMidwayTime: null,
   alertConfigOneThirdTime: null,
   alertConfigTwoThirdTime: null,
-  speedMode: 1,
+  speedMode: 0, //1
   lastKeypressTime: null,
   delta: 500,
 };
@@ -45,7 +46,373 @@ const shiftKeyDoublePressConfig = {
   delta: 200,
 };
 
+function getVideoSplitFactor() {
+  let videoSplit;
+  if (video.duration >= 30 * 60) videoSplit = 8;
+  else if (video.duration >= 20 * 60) videoSplit = 6;
+  else if (video.duration >= 10 * 60) videoSplit = 4;
+  else if (video.duration >= 5 * 60) videoSplit = 2;
+  else videoSplit = 1;
+
+  return videoSplit;
+}
+
+const convertToNearest30 = (num) => Math.round(num / 30) * 30;
+const convertToNearestX = (num, X) => Math.floor(num / X) * X;
+
+const seekToTime = function (value) {
+  const video = document.querySelector('video');
+  let seekToTime = video.currentTime + value;
+
+  if (seekToTime < 0) {
+    video.currentTime = 0;
+  } else if (seekToTime > video.duration) video.currentTime = video.duration;
+
+  video.currentTime = seekToTime;
+  notify.display(
+    `Current Position: <${toMinutesandSeconds(video.currentTime)}> of <${toMinutesandSeconds(
+      video.duration
+    )}>`
+  );
+};
+function reduceSpeed(value = 0.25) {
+  const MIN_SPEED = 0.5;
+  let newSpeed = getSpeed() - value;
+  newSpeed = newSpeed < MIN_SPEED ? MIN_SPEED : newSpeed;
+  setSpeed(newSpeed);
+  updateSpeedIcon(newSpeed);
+}
+function increaseSpeed(value = 0.25) {
+  const MAX_SPEED = 15;
+  let newSpeed = getSpeed() + value;
+  newSpeed = newSpeed > MAX_SPEED ? MAX_SPEED : newSpeed;
+  setSpeed(newSpeed);
+  updateSpeedIcon(newSpeed);
+}
+
+function notifyReplayStatus() {
+  const currentSplit = parseInt(replayConfig.endPosition / replayConfig.interval);
+  const totalSplit = parseInt(video.duration / replayConfig.interval);
+
+  let reviews = JSON.parse(localStorage.getItem('reviews'));
+  let videoStat =
+    reviews && reviews[video.origin?.path]?.replayHistory[`split-${currentSplit}`]?.count;
+
+  notify.display(
+    `Video Stats: Split watch count:: ${videoStat ?? 0} times!
+    \r\n\r\nReplay: is ${
+      !!replayConfig.unsubscribe ? 'ON!:' : 'OFF!:'
+    }\r\nStart Time: ${toMinutesandSeconds(
+      replayConfig.startPosition
+    )}\r\nEnd Time:  ${toMinutesandSeconds(replayConfig.endPosition)}`,
+    `\r\nPosition:   [${currentSplit}] of [${totalSplit}]`,
+    20000
+  );
+}
+
+function studyStatisticsTracker() {
+  const currentSplit = parseInt(replayConfig.endPosition / replayConfig.interval);
+  let reviews = JSON.parse(localStorage.getItem('reviews'));
+  const reviewExists = !!reviews;
+  let updatedReview = reviewExists ? reviews : {};
+
+  let review = updatedReview[video.origin?.path];
+  if (!review) {
+    review = {
+      name: video.origin?.name,
+      path: video.origin?.path,
+      type: video.origin?.type,
+      replayHistory: {
+        [`split-${currentSplit}`]: {
+          count: 1,
+          startTime: replayConfig.startPosition,
+          endTime: replayConfig.endPosition,
+        },
+      },
+      lastReviewDate: Date.now(),
+    };
+  } else {
+    if (review.replayHistory[`split-${currentSplit}`]?.count) {
+      review.replayHistory[`split-${currentSplit}`].count =
+        review.replayHistory[`split-${currentSplit}`].count + 1;
+    } else {
+      review.replayHistory[`split-${currentSplit}`].count = 1;
+    }
+    review.lastReviewDate = Date.now();
+  }
+
+  updatedReview[video.origin?.path] = { ...review };
+  localStorage.setItem('reviews', JSON.stringify({ ...updatedReview }));
+  notifyReplayStatus();
+}
+
+function playPause() {
+  if (video.paused) {
+    video.play();
+  } else {
+    video.pause();
+  }
+  notify.display(`Playback Status:  ${video.paused ? 'PAUSED!' : 'PLAY!'}`);
+}
+
+let speedTracker = 2;
+function replayCut(offSet, renormalize = true) {
+  clearTimeout(config.timer);
+
+  clearInterval(alertConfig.alertConfigMidwayTime);
+  clearInterval(alertConfig.alertConfigTwoThirdTime);
+  clearInterval(alertConfig.alertConfigOneThirdTime);
+  //   ========================
+
+  if (replayConfig.unsubscribe) {
+    clearInterval(replayConfig.unsubscribe);
+    replayConfig.unsubscribe = null;
+
+    // setSpeed(replayConfig.cachedPlaybackRate || 3);
+    // video.currentTime = replayConfig.endPosition;
+    notify.display('Replay: Stopped!');
+  } else {
+    if (renormalize) {
+      replayConfig.startPosition = Math.max(convertToNearest30(video.currentTime) - offSet, 0);
+      replayConfig.endPosition = Math.min(replayConfig.startPosition + offSet, video.duration);
+    } else {
+      replayConfig.startPosition = Math.max(replayConfig.startOffset, 0);
+      replayConfig.endPosition = Math.min(
+        replayConfig.startPosition + replayConfig.interval,
+        video.duration
+      );
+    }
+
+    setSpeed(2);
+    const minDurationForVideoSplitFactor = 5 * 60;
+    video.duration < minDurationForVideoSplitFactor
+      ? (video.currentTime = 0)
+      : (video.currentTime = parseInt(replayConfig.startPosition));
+    //  video.currentTime = parseInt(replayConfig.startPosition);
+    replayConfig.unsubscribe = setInterval(() => {
+      if (
+        video.currentTime >= replayConfig.endPosition - 5 ||
+        video.currentTime < replayConfig.startPosition
+      ) {
+        video.currentTime = replayConfig.startPosition;
+        //   const speedTOptions = [2, 3.5, 10];
+        const speedTOptions = [2, 3, 10];
+        speedTracker = (speedTracker + 1) % speedTOptions.length;
+        setSpeed(speedTOptions[speedTracker]);
+        // ===================
+        studyStatisticsTracker();
+        //   notifyReplayStatus();
+      }
+    }, 1000);
+
+    notifyReplayStatus();
+  }
+}
+
+function toggleSpeed(intervalInSeconds = 10, isFAST = false) {
+  alertConfig.speedMode = 0;
+  alertMidWay();
+  //   ==============>
+
+  let index = 0;
+  const timer = setInterval(() => {
+    if (isFAST) {
+      setSpeed(rangeFast[++index % rangeFast.length], false);
+    } else {
+      setSpeed(rangeBasic[++index % rangeBasic.length], false);
+    }
+  }, intervalInSeconds * 1000);
+  return timer;
+}
+
+export function updateSpeedIcon(newSpeed) {
+  const speed = document.getElementById('speed');
+  const text = document.querySelector('#speed > svg > text');
+
+  newSpeed = parseFloat(newSpeed);
+  speed.dataset.mode = `${newSpeed}X`;
+  text.innerHTML = `${newSpeed}X`;
+  speed.title = (() => {
+    return `CURRENT: ${newSpeed}x:\n
+    Adjust player's speed (2X [DEFAULT], 3X, 3.5X, 4X, 4.5X and 5X)\n (Ctrl + X or Command + X)`;
+  })();
+  newSpeed >= 6 ? (video.muted = true) : (video.muted = false);
+}
+
+function setSpeed(newSpeed, showNotification = true) {
+  replayConfig.cachedPlaybackRate = video.playbackRate;
+  newSpeed = parseFloat(newSpeed);
+  video.playbackRate = newSpeed;
+
+  updateSpeedIcon(newSpeed);
+  showNotification && notify.display(`Speed: ${newSpeed}`);
+}
+function getSpeed() {
+  const video = document.querySelector('video');
+  return video.playbackRate;
+}
+
+function alertMidWay() {
+  clearTimeout(config.timer);
+
+  clearInterval(alertConfig.alertConfigMidwayTime);
+  clearInterval(alertConfig.alertConfigTwoThirdTime);
+  clearInterval(alertConfig.alertConfigOneThirdTime);
+
+  alertConfig.speedMode == 1 && setSpeed(2.5, false);
+  alertConfig.speedMode == 2 && setSpeed(2.5, false);
+  //   =================
+
+  //   const standardLength = 10 * 60; //10mins
+  //   const minimumLength = 6 * 60; //6mins
+  //   if (video.duration < minimumLength) return;
+  //   =================>
+  alertConfig.alertConfigOneThirdTime = setInterval(() => {
+    const _25PercentTime = video.duration * 0.25; //80%
+    if (
+      // video.duration > standardLength &&
+      video.currentTime > _25PercentTime &&
+      video.currentTime < _25PercentTime * 2
+    ) {
+      alertConfig.speedMode === 1 && setSpeed(3, false);
+      alertConfig.speedMode === 2 && setSpeed(3.5, false);
+      const remainTime = video.duration - _25PercentTime; //25%
+      notify.display(
+        `Alert:\r\nJust Past 25%`,
+        `\r\n\r\n[${toMinutesandSeconds(remainTime, false)}]`
+      );
+      clearInterval(alertConfig.alertConfigOneThirdTime);
+    }
+  }, 2000);
+  //   =================>
+
+  alertConfig.alertConfigMidwayTime = setInterval(() => {
+    const midwayTime = video.duration * 0.5; //60%
+    if (video.currentTime > midwayTime) {
+      alertConfig.speedMode == 1 && setSpeed(3, false);
+      alertConfig.speedMode == 2 && setSpeed(4, false);
+      const remainTime = video.duration - midwayTime; //40%
+      notify.display(
+        `Alert:\r\nJust Past 50%`,
+        `\r\n\r\n[${toMinutesandSeconds(remainTime, false)}]`
+      );
+      clearInterval(alertConfig.alertConfigMidwayTime);
+    }
+  }, 2000);
+
+  //   =====================>
+  alertConfig.alertConfigTwoThirdTime = setInterval(() => {
+    const _75PercentTime = video.duration * 0.75; //80%
+    if (
+      // video.duration > standardLength &&
+      video.currentTime > _75PercentTime
+    ) {
+      alertConfig.speedMode == 1 && setSpeed(3.5, false);
+      alertConfig.speedMode == 2 && setSpeed(4.5, false);
+      const remainTime = video.duration - _75PercentTime; //25%
+      notify.display(
+        `Alert:\r\nJust Past 75%`,
+        `\r\n\r\n[${toMinutesandSeconds(remainTime, false)}]`
+      );
+      clearInterval(alertConfig.alertConfigTwoThirdTime);
+    }
+  }, 2000);
+}
+
+function toMinutesandSeconds(seconds, getFullFormat = true) {
+  const format = (val) => `0${Math.floor(val)}`.slice(-2);
+  const hours = seconds / 3600;
+  const minutes = (seconds % 3600) / 60;
+
+  const fullFormat = [hours, minutes, seconds % 60].map(format).join(':');
+  const hourMinuteOnlyFormat = [hours, minutes].map(format).join(':');
+  return getFullFormat ? fullFormat : hourMinuteOnlyFormat;
+}
+
+function toggleFullScreen() {
+  if (
+    !document.fullscreenElement && // alternative standard method
+    !document.mozFullScreenElement &&
+    !document.webkitFullscreenElement &&
+    !document.msFullscreenElement
+  ) {
+    // current working methods
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    } else if (document.documentElement.msRequestFullscreen) {
+      document.documentElement.msRequestFullscreen();
+    } else if (document.documentElement.mozRequestFullScreen) {
+      document.documentElement.mozRequestFullScreen();
+    } else if (document.documentElement.webkitRequestFullscreen) {
+      document.documentElement.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.msExitFullscreen) {
+      document.msExitFullscreen();
+    } else if (document.mozCancelFullScreen) {
+      document.mozCancelFullScreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
+  }
+}
+
+function moveToNextPlaybackRange() {
+  replayConfig.startPosition = Math.min(
+    replayConfig.startPosition + replayConfig.interval,
+    video.duration - replayConfig.interval
+  );
+  replayConfig.endPosition = Math.min(
+    replayConfig.startPosition + replayConfig.interval,
+    video.duration
+  );
+  //  replayConfig.endPosition = Math.min(
+  //    replayConfig.endPosition + replayConfig.interval,
+  //    video.duration
+  //  );
+  //  replayConfig.startPosition = Math.max(replayConfig.endPosition - replayConfig.interval, 0);
+  video.currentTime = replayConfig.startPosition;
+  notifyReplayStatus();
+}
+
+function moveToPreviousPlaybackRange() {
+  replayConfig.startPosition = Math.max(replayConfig.startPosition - replayConfig.interval, 0);
+  replayConfig.endPosition = Math.min(
+    replayConfig.startPosition + replayConfig.interval,
+    video.duration
+  );
+  video.currentTime = replayConfig.startPosition;
+  notifyReplayStatus();
+}
+
+var multipleKeysMap = {};
+function handleMultipleKeyPress(evt) {
+  let { keyCode, type } = evt || Event; // to deal with IE
+  let isKeyDown = type == 'keydown';
+  multipleKeysMap[keyCode] = isKeyDown;
+
+  if (isKeyDown && multipleKeysMap[8] && multipleKeysMap[189]) {
+    //   backspace & Minus
+    moveToPreviousPlaybackRange();
+  } else if (isKeyDown && multipleKeysMap[8] && multipleKeysMap[187]) {
+    //   backspace & Equal
+    moveToNextPlaybackRange();
+  }
+}
+// ==================================================================
+// ==================================================================
 const rules = [
+  {
+    condition(meta, code, shift) {
+      return code === 'Digit1';
+    },
+    action(e) {
+      playlist.loadReviews();
+      return true;
+    },
+  },
   {
     condition(meta, code, shift) {
       if (code === 'Minus' || code === 'Equal' || code === 'Digit9' || code === 'Digit0') {
@@ -325,8 +692,8 @@ const rules = [
     },
     action(e) {
       e.preventDefault();
-      setSpeed(15);
-      updateSpeedIcon(15);
+      setSpeed(10);
+      updateSpeedIcon(10);
       return false;
     },
   },
@@ -340,8 +707,8 @@ const rules = [
         thisKeypressTime - shiftKeyDoublePressConfig.lastKeypressTime <=
         shiftKeyDoublePressConfig.delta
       ) {
-        setSpeed(15);
-        updateSpeedIcon(15);
+        setSpeed(10);
+        updateSpeedIcon(10);
         thisKeypressTime = 0;
       } else {
         if (video.playbackRate != 3) {
@@ -431,279 +798,8 @@ const rules = [
     },
   },
 ];
-
-function getVideoSplitFactor() {
-  let videoSplit;
-  if (video.duration >= 30 * 60) videoSplit = 8;
-  else if (video.duration >= 20 * 60) videoSplit = 6;
-  else if (video.duration >= 10 * 60) videoSplit = 4;
-  else if (video.duration >= 5 * 60) videoSplit = 2;
-  else videoSplit = 1;
-
-  return videoSplit;
-}
-
-const convertToNearest30 = (num) => Math.round(num / 30) * 30;
-const convertToNearestX = (num, X) => Math.floor(num / X) * X;
-
-const seekToTime = function (value) {
-  const video = document.querySelector('video');
-  let seekToTime = video.currentTime + value;
-
-  if (seekToTime < 0) {
-    video.currentTime = 0;
-  } else if (seekToTime > video.duration) video.currentTime = video.duration;
-
-  video.currentTime = seekToTime;
-  notify.display(
-    `Current Position: <${toMinutesandSeconds(video.currentTime)}> of <${toMinutesandSeconds(
-      video.duration
-    )}>`
-  );
-};
-function reduceSpeed(value = 0.25) {
-  const MIN_SPEED = 0.5;
-  let newSpeed = getSpeed() - value;
-  newSpeed = newSpeed < MIN_SPEED ? MIN_SPEED : newSpeed;
-  setSpeed(newSpeed);
-  updateSpeedIcon(newSpeed);
-}
-function increaseSpeed(value = 0.25) {
-  const MAX_SPEED = 15;
-  let newSpeed = getSpeed() + value;
-  newSpeed = newSpeed > MAX_SPEED ? MAX_SPEED : newSpeed;
-  setSpeed(newSpeed);
-  updateSpeedIcon(newSpeed);
-}
-
-function notifyReplayStatus() {
-  const currentSplit = parseInt(replayConfig.endPosition / replayConfig.interval);
-  const totalSplit = parseInt(video.duration / replayConfig.interval);
-  const videoTitle = document.querySelector(
-    '#playlist > li.active > span:nth-child(1)'
-  ).textContent;
-
-  let reviews = JSON.parse(localStorage.getItem('reviews'));
-  let videoStat = reviews && reviews[video.currentSrc]?.replayHistory[`split-${currentSplit}`];
-  //   let videoStat =
-  //     reviews && reviews[JSON.stringify(videoTitle)]?.replayHistory[`split-${currentSplit}`];
-  notify.display(
-    `Video Stats: Split watch count:: ${videoStat ?? 0} times!
-    \r\n\r\nReplay: is ${
-      !!replayConfig.unsubscribe ? 'ON!:' : 'OFF!:'
-    }\r\nStart Time: ${toMinutesandSeconds(
-      replayConfig.startPosition
-    )}\r\nEnd Time:  ${toMinutesandSeconds(replayConfig.endPosition)}`,
-    `\r\nPosition:   [${currentSplit}] of [${totalSplit}]`,
-    20000
-  );
-}
-
-function studyStatisticsTracker() {
-  const currentSplit = parseInt(replayConfig.endPosition / replayConfig.interval);
-  let reviews = JSON.parse(localStorage.getItem('reviews'));
-  const reviewExists = !!reviews;
-  let updatedReview = reviewExists ? reviews : {};
-  const videoTitle = document.querySelector(
-    '#playlist > li.active > span:nth-child(1)'
-  ).textContent;
-  //   let review = updatedReview[JSON.stringify(videoTitle)];
-  let review = updatedReview[video.currentSrc];
-  if (!review) {
-    review = {
-      title: videoTitle,
-      replayHistory: { [`split-${currentSplit}`]: 1 },
-      lastReviewDate: Date.now(),
-    };
-  } else {
-    if (review.replayHistory[`split-${currentSplit}`]) {
-      review.replayHistory[`split-${currentSplit}`] =
-        review.replayHistory[`split-${currentSplit}`] + 1;
-    } else {
-      review.replayHistory[`split-${currentSplit}`] = 1;
-    }
-    review.lastReviewDate = Date.now();
-  }
-
-  //   updatedReview[JSON.stringify(videoTitle)] = { ...review };
-  updatedReview[video.currentSrc] = { ...review };
-  //   console.log('🚀 ~updatedReview', updatedReview);
-  localStorage.setItem('reviews', JSON.stringify({ ...updatedReview }));
-  notifyReplayStatus();
-}
-
-function playPause() {
-  if (video.paused) {
-    video.play();
-  } else {
-    video.pause();
-  }
-  notify.display(`Playback Status:  ${video.paused ? 'PAUSED!' : 'PLAY!'}`);
-}
-
-let speedTracker = 2;
-function replayCut(offSet, renormalize = true) {
-  clearTimeout(config.timer);
-
-  clearInterval(alertConfig.alertConfigMidwayTime);
-  clearInterval(alertConfig.alertConfigTwoThirdTime);
-  clearInterval(alertConfig.alertConfigOneThirdTime);
-  //   ========================
-
-  if (replayConfig.unsubscribe) {
-    clearInterval(replayConfig.unsubscribe);
-    replayConfig.unsubscribe = null;
-
-    // setSpeed(replayConfig.cachedPlaybackRate || 3);
-    // video.currentTime = replayConfig.endPosition;
-    notify.display('Replay: Stopped!');
-  } else {
-    if (renormalize) {
-      replayConfig.startPosition = Math.max(convertToNearest30(video.currentTime) - offSet, 0);
-      replayConfig.endPosition = Math.min(replayConfig.startPosition + offSet, video.duration);
-    } else {
-      replayConfig.startPosition = Math.max(replayConfig.startOffset, 0);
-      replayConfig.endPosition = Math.min(
-        replayConfig.startPosition + replayConfig.interval,
-        video.duration
-      );
-    }
-
-    setSpeed(2);
-    const minDurationForVideoSplitFactor = 5 * 60;
-    video.duration < minDurationForVideoSplitFactor
-      ? (video.currentTime = 0)
-      : (video.currentTime = parseInt(replayConfig.startPosition));
-    //  video.currentTime = parseInt(replayConfig.startPosition);
-    replayConfig.unsubscribe = setInterval(() => {
-      if (
-        video.currentTime >= replayConfig.endPosition - 5 ||
-        video.currentTime < replayConfig.startPosition
-      ) {
-        video.currentTime = replayConfig.startPosition;
-        //   const speedTOptions = [2, 3.5, 10];
-        const speedTOptions = [2, 3, 10];
-        speedTracker = (speedTracker + 1) % speedTOptions.length;
-        setSpeed(speedTOptions[speedTracker]);
-        // ===================
-        studyStatisticsTracker();
-        //   notifyReplayStatus();
-      }
-    }, 1000);
-
-    notifyReplayStatus();
-  }
-}
-
-function toggleSpeed(intervalInSeconds = 10, isFAST = false) {
-  alertConfig.speedMode = 0;
-  alertMidWay();
-  //   ==============>
-
-  let index = 0;
-  const timer = setInterval(() => {
-    if (isFAST) {
-      setSpeed(rangeFast[++index % rangeFast.length], false);
-    } else {
-      setSpeed(rangeBasic[++index % rangeBasic.length], false);
-    }
-  }, intervalInSeconds * 1000);
-  return timer;
-}
-
-export function updateSpeedIcon(newSpeed) {
-  const speed = document.getElementById('speed');
-  const text = document.querySelector('#speed > svg > text');
-
-  newSpeed = parseFloat(newSpeed);
-  speed.dataset.mode = `${newSpeed}X`;
-  text.innerHTML = `${newSpeed}X`;
-  speed.title = (() => {
-    return `CURRENT: ${newSpeed}x:\n
-    Adjust player's speed (2X [DEFAULT], 3X, 3.5X, 4X, 4.5X and 5X)\n (Ctrl + X or Command + X)`;
-  })();
-  newSpeed >= 6 ? (video.muted = true) : (video.muted = false);
-}
-
-function setSpeed(newSpeed, showNotification = true) {
-  replayConfig.cachedPlaybackRate = video.playbackRate;
-  newSpeed = parseFloat(newSpeed);
-  video.playbackRate = newSpeed;
-
-  updateSpeedIcon(newSpeed);
-  showNotification && notify.display(`Speed: ${newSpeed}`);
-}
-function getSpeed() {
-  const video = document.querySelector('video');
-  return video.playbackRate;
-}
-
-function alertMidWay() {
-  clearTimeout(config.timer);
-
-  clearInterval(alertConfig.alertConfigMidwayTime);
-  clearInterval(alertConfig.alertConfigTwoThirdTime);
-  clearInterval(alertConfig.alertConfigOneThirdTime);
-
-  alertConfig.speedMode == 1 && setSpeed(2.5, false);
-  alertConfig.speedMode == 2 && setSpeed(2.5, false);
-  //   =================
-
-  //   const standardLength = 10 * 60; //10mins
-  //   const minimumLength = 6 * 60; //6mins
-  //   if (video.duration < minimumLength) return;
-  //   =================>
-  alertConfig.alertConfigOneThirdTime = setInterval(() => {
-    const _25PercentTime = video.duration * 0.25; //80%
-    if (
-      // video.duration > standardLength &&
-      video.currentTime > _25PercentTime &&
-      video.currentTime < _25PercentTime * 2
-    ) {
-      alertConfig.speedMode === 1 && setSpeed(3, false);
-      alertConfig.speedMode === 2 && setSpeed(3.5, false);
-      const remainTime = video.duration - _25PercentTime; //25%
-      notify.display(
-        `Alert:\r\nJust Past 25%`,
-        `\r\n\r\n[${toMinutesandSeconds(remainTime, false)}]`
-      );
-      clearInterval(alertConfig.alertConfigOneThirdTime);
-    }
-  }, 2000);
-  //   =================>
-
-  alertConfig.alertConfigMidwayTime = setInterval(() => {
-    const midwayTime = video.duration * 0.5; //60%
-    if (video.currentTime > midwayTime) {
-      alertConfig.speedMode == 1 && setSpeed(3, false);
-      alertConfig.speedMode == 2 && setSpeed(4, false);
-      const remainTime = video.duration - midwayTime; //40%
-      notify.display(
-        `Alert:\r\nJust Past 50%`,
-        `\r\n\r\n[${toMinutesandSeconds(remainTime, false)}]`
-      );
-      clearInterval(alertConfig.alertConfigMidwayTime);
-    }
-  }, 2000);
-
-  //   =====================>
-  alertConfig.alertConfigTwoThirdTime = setInterval(() => {
-    const _75PercentTime = video.duration * 0.75; //80%
-    if (
-      // video.duration > standardLength &&
-      video.currentTime > _75PercentTime
-    ) {
-      alertConfig.speedMode == 1 && setSpeed(3.5, false);
-      alertConfig.speedMode == 2 && setSpeed(4.5, false);
-      const remainTime = video.duration - _75PercentTime; //25%
-      notify.display(
-        `Alert:\r\nJust Past 75%`,
-        `\r\n\r\n[${toMinutesandSeconds(remainTime, false)}]`
-      );
-      clearInterval(alertConfig.alertConfigTwoThirdTime);
-    }
-  }, 2000);
-}
+window.addEventListener('keyup', handleMultipleKeyPress);
+window.addEventListener('keydown', handleMultipleKeyPress);
 
 // =================================================
 // =================================================
@@ -755,91 +851,6 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
-
-function moveToNextPlaybackRange() {
-  replayConfig.startPosition = Math.min(
-    replayConfig.startPosition + replayConfig.interval,
-    video.duration - replayConfig.interval
-  );
-  replayConfig.endPosition = Math.min(
-    replayConfig.startPosition + replayConfig.interval,
-    video.duration
-  );
-  //  replayConfig.endPosition = Math.min(
-  //    replayConfig.endPosition + replayConfig.interval,
-  //    video.duration
-  //  );
-  //  replayConfig.startPosition = Math.max(replayConfig.endPosition - replayConfig.interval, 0);
-  video.currentTime = replayConfig.startPosition;
-  notifyReplayStatus();
-}
-
-function moveToPreviousPlaybackRange() {
-  replayConfig.startPosition = Math.max(replayConfig.startPosition - replayConfig.interval, 0);
-  replayConfig.endPosition = Math.min(
-    replayConfig.startPosition + replayConfig.interval,
-    video.duration
-  );
-  video.currentTime = replayConfig.startPosition;
-  notifyReplayStatus();
-}
-
-var multipleKeysMap = {};
-function handleMultipleKeyPress(evt) {
-  let { keyCode, type } = evt || Event; // to deal with IE
-  let isKeyDown = type == 'keydown';
-  multipleKeysMap[keyCode] = isKeyDown;
-
-  if (isKeyDown && multipleKeysMap[8] && multipleKeysMap[189]) {
-    //   backspace & Minus
-    moveToPreviousPlaybackRange();
-  } else if (isKeyDown && multipleKeysMap[8] && multipleKeysMap[187]) {
-    //   backspace & Equal
-    moveToNextPlaybackRange();
-  }
-}
-window.addEventListener('keyup', handleMultipleKeyPress);
-window.addEventListener('keydown', handleMultipleKeyPress);
-
-function toMinutesandSeconds(seconds, getFullFormat = true) {
-  const format = (val) => `0${Math.floor(val)}`.slice(-2);
-  const hours = seconds / 3600;
-  const minutes = (seconds % 3600) / 60;
-
-  const fullFormat = [hours, minutes, seconds % 60].map(format).join(':');
-  const hourMinuteOnlyFormat = [hours, minutes].map(format).join(':');
-  return getFullFormat ? fullFormat : hourMinuteOnlyFormat;
-}
-
-function toggleFullScreen() {
-  if (
-    !document.fullscreenElement && // alternative standard method
-    !document.mozFullScreenElement &&
-    !document.webkitFullscreenElement &&
-    !document.msFullscreenElement
-  ) {
-    // current working methods
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen();
-    } else if (document.documentElement.msRequestFullscreen) {
-      document.documentElement.msRequestFullscreen();
-    } else if (document.documentElement.mozRequestFullScreen) {
-      document.documentElement.mozRequestFullScreen();
-    } else if (document.documentElement.webkitRequestFullscreen) {
-      document.documentElement.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
-    }
-  } else {
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    } else if (document.msExitFullscreen) {
-      document.msExitFullscreen();
-    } else if (document.mozCancelFullScreen) {
-      document.mozCancelFullScreen();
-    } else if (document.webkitExitFullscreen) {
-      document.webkitExitFullscreen();
-    }
-  }
-}
 
 keyboard.register = (rule) => rules.push(rule);
 export default keyboard;

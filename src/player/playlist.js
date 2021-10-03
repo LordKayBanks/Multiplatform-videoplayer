@@ -30,9 +30,8 @@ const scrollIntoView = (e) => {
 
 const stats = new WeakMap();
 let delayId;
-
 let state = -1; // current playing state
-const playlist = {
+export const playlist = {
   PlayerState: {
     UNSTARTED: -1,
     ENDED: 0,
@@ -131,7 +130,21 @@ const playlist = {
     video.pause();
     video.currentTime = 0;
   },
-  loadVideosFromStorage() {
+  loadReviews() {
+    let reviews = JSON.parse(localStorage.getItem('reviews'));
+    if (!!reviews) {
+      reviews = sortReviews(reviews);
+      playlist.entries = [];
+      root.innerHTML = '';
+      playlist.cueVideo(reviews);
+      playlist.play(0);
+      notify.display(`${reviews.length} Reviews Loaded!`);
+
+      video.currentTime = video.origin.startTime;
+      watcherForReviewMode();
+    } else notify.display('no reviews available!');
+  },
+  loadPlaylistFromStorage() {
     const files = JSON.parse(localStorage.getItem('playlist'));
     if (!!files) {
       playlist.cueVideo(files);
@@ -256,5 +269,54 @@ boost.addEventListener('click', (e) => {
   }, 100);
 });
 
-document.addEventListener('DOMContentLoaded', playlist.loadVideosFromStorage);
+document.addEventListener('DOMContentLoaded', playlist.loadPlaylistFromStorage);
 export default playlist;
+
+let unsubscribeToReview = null;
+function watcherForReviewMode() {
+  unsubscribeToReview = setInterval(() => {
+    if (video.currentTime > video.origin.endTime) {
+      playlist.play(playlist.index + 1);
+      video.currentTime = video.origin.startTime;
+      clearInterval(unsubscribeToReview);
+      watcherForReviewMode();
+      // ===================
+      //  video.currentTime = video.origin.startTime;
+      //  setSpeed(speedTOptions[speedTracker]);
+      //  studyStatisticsTracker();
+      //   notifyReplayStatus();
+    }
+  }, 1000);
+}
+
+function sortReviews(reviews) {
+  return Object.keys(reviews)
+    .map((key) => reviews[key])
+    .map((review) => {
+      let updatedReview = Object.keys(review.replayHistory).map((key) => ({
+        //  [key]: review.replayHistory[key],
+        replayCount: review.replayHistory[key].count,
+        startTime: review.replayHistory[key].startTime,
+        endTime: review.replayHistory[key].endTime,
+        split: key,
+      }));
+      return updatedReview.map((split) => {
+        return { ...review, ...split };
+      });
+    })
+    .flat()
+    .sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount);
+  //  .sort((reviewA, reviewB) => reviewA.path.localeCompare(reviewB.path))
+
+  //   .sort((reviewA, reviewB) => {
+  //     return (
+  //       reviewB.replayCount - reviewA.replayCount || reviewA.path.localeCompare(reviewB.path)
+  //     );
+  //     //  const res = reviewB.replayCount - reviewA.replayCount;
+  //     //  if (res !== 0) {
+  //     //    return res;
+  //     //  } else {
+  //     //    return reviewA.path.localeCompare(reviewB.path);
+  //     //  }
+  //   });
+}
