@@ -103,8 +103,8 @@ body[data-mode='expand'] #buttons {
   cursor: pointer;
 }
 #playlist li.active {
-  /* background-color: var(--hover-color); */
-  background-color: white;
+  background-color: #5d5858;
+  color: white;
 }
 #playlist li span[data-id='name'] {
   overflow: hidden;
@@ -112,6 +112,12 @@ body[data-mode='expand'] #buttons {
   display: block;
   margin-right: 10px;
   flex: 1;
+}
+.file-separator {
+  border-bottom: 2px solid #c1a1a180;
+  padding: 0 10px !important;
+  margin: 12px;
+  pointer-events: none;
 }
 body:not([data-mode='expand']) #playlist li {
   display: none;

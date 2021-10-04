@@ -137,6 +137,10 @@ export const playlist = {
     video.origin = s;
     clearTimeout(unsubscribeSkipOnPlayError);
     video.play().catch((e) => {
+      //skip separator LI's
+      if (e.message.includes('Failed to load because no supported source was found')) {
+        return playlist.play(playlist.index + 1);
+      }
       notify.display(e.message, 2000);
       unsubscribeSkipOnPlayError = setTimeout(
         () => playlist.play(playlist.index + 1, playlist.configs.delay),
@@ -155,7 +159,8 @@ export const playlist = {
       reviews = sortReviews(reviews);
       playlist.entries = [];
       root.innerHTML = '';
-      playlist.cueVideo(reviews);
+      // playlist.cueVideo(reviews);
+      playlist.cueVideo(reviews, false);
       playlist.play(0);
       setTimeout(() => notify.display(`${reviews.length} Reviews Loaded!`), 5000);
 
@@ -163,9 +168,11 @@ export const playlist = {
     } else notify.display('no reviews available!');
   },
   loadPlaylistFromStorage() {
+    playlist.entries = [];
+    root.innerHTML = '';
     const files = JSON.parse(localStorage.getItem('playlist'));
     if (!!files) {
-      playlist.cueVideo(files);
+      playlist.cueVideo(files, false);
       playlist.play(0);
     } else notify.display('no playlist saved!');
   },
@@ -174,14 +181,21 @@ export const playlist = {
     playlist.cueVideo(files);
     this.play(index);
   },
-  cueVideo(files) {
+  cueVideo(files, isNewFiles = true) {
     playlist.entries.push(...files);
-    const temp = playlist.entries.map(({ name, path, type, e }) => ({ name, path, type }));
-    localStorage.setItem('playlist', JSON.stringify(temp));
-    //  console.log('🚀JSON.stringify(temp)', JSON.parse(temp));
-    //  console.log('🚀playlist.entries', playlist.entries);
-    const f = document.createDocumentFragment();
+    if (isNewFiles) {
+      const temp = [...files].map(({ name, path, type, e }) => ({ name, path, type }));
+      temp.push({ name: ' ', path: '', type: 'separator' });
 
+      const oldPlaylist = JSON.parse(localStorage.getItem('playlist')) || [];
+      const newPlaylist = [...oldPlaylist, ...temp];
+      localStorage.setItem('playlist', JSON.stringify(newPlaylist));
+
+      // redraws playlist to show separators
+      // setTimeout(() => playlist.loadPlaylistFromStorage(), 1000);
+    }
+
+    const f = document.createDocumentFragment();
     for (const file of files) {
       const li = document.createElement('li');
       const name = document.createElement('span');
@@ -192,11 +206,14 @@ export const playlist = {
       duration.textContent = '--:--';
       li.appendChild(name);
       li.appendChild(duration);
+      if (file.type === 'separator') {
+        duration.textContent = ' ';
+        li.classList.add('file-separator');
+      }
       file.e = li;
       li.file = file;
       f.appendChild(li);
     }
-
     root.appendChild(f);
   },
   onStateChange(c) {
@@ -249,8 +266,8 @@ function watcherForReviewMode(loopCurrentSplit = false) {
   }, 1000);
 }
 
-const MINIMUM_REVIEW_COUNT = 5;
 function sortReviews(reviews) {
+  const MINIMUM_REVIEW_COUNT = 3;
   return Object.keys(reviews)
     .map((key) => reviews[key])
     .map((review) => {
@@ -377,6 +394,7 @@ reviewModeElement.addEventListener('click', (e) => {
     setupReviewMode({ loopCurrentSplit: true });
     isReviewing = true;
   } else if (value === 'inactive') {
+    playlist.loadPlaylistFromStorage();
     setupReviewMode({ activate: false });
     isReviewing = false;
   }
