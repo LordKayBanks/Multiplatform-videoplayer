@@ -282,11 +282,12 @@ let reviews = {
       lastReviewDate: 1613_377545540,
     },
 };
-// 1633381337324
+// 1633__381_337_324
+// Math.floor(Math.random() * 999_999_999).toString().length;
 for (let key in reviews) {
-  let random = Math.random() * 999999999;
-  random = parseInt(`${1633}${random}`);
-  console.log('🚀  random', random);
+  let random = Math.floor(Math.random() * 999_999_999);
+  const fixed = 163;
+  random = parseInt(`${fixed}${2}${random}`.padEnd(13, 0));
   reviews[key].lastReviewDate = random;
 }
 localStorage.setItem('reviews', JSON.stringify(reviews));

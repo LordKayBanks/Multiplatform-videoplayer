@@ -243,7 +243,8 @@ export function setupReviewMode({ activate = true, loopCurrentSplit = false }) {
     trackingModeElement.dataset.mode = 'inactive';
     trackingMode(null, false);
   }
-  video.currentTime = video.origin.startTime;
+
+  if (video.origin.startTime) video.currentTime = video.origin.startTime;
   clearInterval(unsubscribeToReview);
 
   loopCurrentSplit && notify.display(`Reviews: Looping`);

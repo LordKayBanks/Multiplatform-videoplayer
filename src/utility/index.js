@@ -20,6 +20,7 @@ export function sortReviews(reviews, sortCriteria) {
     })
     .flat()
     .filter((review) => review.replayCount >= MINIMUM_REVIEW_COUNT);
+
   switch (sortCriteria) {
     case 'count-descending': {
       result = result.sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount);
@@ -59,24 +60,6 @@ export function sortReviews(reviews, sortCriteria) {
     }
     case 'time-descending': {
       result = result.sort(
-        (reviewA, reviewB) => reviewB.lastReviewDate - reviewA.lastReviewDate
-      );
-      result = groupReviewsBy({
-        reviews: result,
-        innerKey: 'lastReviewDate',
-        partitionFunc: dateToDescription,
-        finalSortFunc: (reviews) =>
-          reviews.sort((reviewA, reviewB) => reviewB.lastReviewDate - reviewA.lastReviewDate),
-      });
-      temp = result.map(({ lastReviewDate, name }) => ({
-        time: dateToDescription(lastReviewDate),
-        lastReviewDate,
-        name,
-      }));
-      break;
-    }
-    case 'time-ascending': {
-      result = result.sort(
         (reviewA, reviewB) => reviewA.lastReviewDate - reviewB.lastReviewDate
       );
       result = groupReviewsBy({
@@ -93,12 +76,30 @@ export function sortReviews(reviews, sortCriteria) {
       }));
       break;
     }
+    case 'time-ascending': {
+      result = result.sort(
+        (reviewA, reviewB) => reviewB.lastReviewDate - reviewA.lastReviewDate
+      );
+      result = groupReviewsBy({
+        reviews: result,
+        innerKey: 'lastReviewDate',
+        partitionFunc: dateToDescription,
+        finalSortFunc: (reviews) =>
+          reviews.sort((reviewA, reviewB) => reviewB.lastReviewDate - reviewA.lastReviewDate),
+      });
+      temp = result.map(({ lastReviewDate, name }) => ({
+        time: dateToDescription(lastReviewDate),
+        lastReviewDate,
+        name,
+      }));
+      break;
+    }
     default: {
       result = result.sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount);
       temp = result.map(({ replayCount, name }) => ({ replayCount, name }));
     }
   }
-  console.error('🚀 sortReviews ~ temp', temp);
+  //   console.error('🚀 sortReviews ~ temp', temp);
   return result;
 }
 
@@ -118,15 +119,25 @@ export function groupReviewsBy({ reviews, innerKey, partitionFunc, finalSortFunc
   for (let item in resultMap) {
     let sortedItems = finalSortFunc(resultMap[item]);
 
-    result = result.length
-      ? [
-          ...result,
-          { ...categorySeparator, name: partitionFunc(result[result.length - 1][innerKey]) },
-          ...sortedItems,
-        ]
-      : [...sortedItems];
+    result = [
+      ...result,
+      {
+        ...categorySeparator,
+        name: partitionFunc(sortedItems[sortedItems.length - 1][innerKey]),
+      },
+      ...sortedItems,
+    ];
   }
   return result;
+  //     result = result.length
+  //       ? [
+  //           ...result,
+  //           { ...categorySeparator, name: partitionFunc(result[result.length - 1][innerKey]) },
+  //           ...sortedItems,
+  //         ]
+  //       : [...sortedItems];
+  //   }
+  //   return result;
 }
 
 export function dateToDescription(myDate) {
@@ -139,9 +150,11 @@ export function dateToDescription(myDate) {
     result = 'Today';
   } else if (parseInt(days) > 0 && parseInt(days) < 7) {
     result = `${days} ${days > 1 ? 'days ago' : 'day ago'}`;
-  } else if (parseInt(weeks) === 0) {
-    result = 'This week';
-  } else if (parseInt(weeks) > 0 && parseInt(weeks) < 4) {
+  }
+  //   else if (parseInt(weeks) === 0) {
+  //     result = 'This week';
+  //   }
+  else if (parseInt(weeks) > 0 && parseInt(weeks) < 4) {
     result = `${weeks} ${weeks > 1 ? 'weeks ago' : 'week ago'}`;
   } else {
     result = moment(myDate).fromNow();
