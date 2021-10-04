@@ -422,6 +422,7 @@ function handleMultipleKeyPress(evt) {
 
 // let timeTracker = 0;
 // function detectBackwardSkipSeek() {
+// html video detect seek backward site:stackoverflow.com
 //   var previousTime = timeTracker;
 //   var currentTime = Math.round(this.currentTime);
 //   if (currentTime > previousTime + 20 || currentTime < previousTime - 20) {
