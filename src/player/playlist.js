@@ -216,6 +216,7 @@ export const playlist = {
       duration.textContent = '--:--';
       li.appendChild(name);
       li.appendChild(duration);
+      li.title = file.split;
       if (file.type === 'separator') {
         duration.textContent = ' ';
         li.classList.add('file-separator');
