@@ -111,7 +111,7 @@ function notifyReplayStatus() {
   );
 }
 
-export function studyStatisticsTracker() {
+export function studyStatisticsTracker(increment = 1) {
   const currentSplit = parseInt(replayConfig.endPosition / replayConfig.interval);
   let reviews = JSON.parse(localStorage.getItem('reviews'));
   const reviewExists = !!reviews;
@@ -125,7 +125,7 @@ export function studyStatisticsTracker() {
       type: video.origin?.type,
       replayHistory: {
         [`split-${currentSplit}`]: {
-          count: 1,
+          count: increment,
           startTime: replayConfig.startPosition,
           endTime: replayConfig.endPosition,
         },
@@ -135,21 +135,21 @@ export function studyStatisticsTracker() {
   } else {
     if (!review.replayHistory[`split-${currentSplit}`]) {
       review.replayHistory[`split-${currentSplit}`] = {
-        count: 1,
+        count: increment,
         startTime: replayConfig.startPosition,
         endTime: replayConfig.endPosition,
       };
     } else {
       review.replayHistory[`split-${currentSplit}`].count =
-        review.replayHistory[`split-${currentSplit}`].count + 1;
+        review.replayHistory[`split-${currentSplit}`].count + increment;
     }
     review.lastReviewDate = Date.now();
 
     //   if (review.replayHistory[`split-${currentSplit}`]?.count) {
     //     review.replayHistory[`split-${currentSplit}`].count =
-    //       review.replayHistory[`split-${currentSplit}`].count + 1;
+    //       review.replayHistory[`split-${currentSplit}`].count + increment;
     //   } else {
-    //     review.replayHistory[`split-${currentSplit}`]?.count = 1;
+    //     review.replayHistory[`split-${currentSplit}`]?.count = increment;
     //   }
     //   review.lastReviewDate = Date.now();
   }
@@ -815,6 +815,10 @@ video.addEventListener('loadeddata', () => {
   }
   const videoTitle = `${video.origin?.name}  `;
   notify.display(videoTitle, `[${toMinutesandSeconds(video.duration)}]`);
+});
+
+video.addEventListener('pause', () => {
+  !!replayConfig.unsubscribe && studyStatisticsTracker(0.5);
 });
 
 video.addEventListener('play', () => {

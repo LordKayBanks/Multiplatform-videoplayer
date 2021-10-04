@@ -155,17 +155,26 @@ export const playlist = {
   },
   loadReviews() {
     let reviews = JSON.parse(localStorage.getItem('reviews'));
-    if (!!reviews) {
-      reviews = sortReviews(reviews);
-      playlist.entries = [];
-      root.innerHTML = '';
-      // playlist.cueVideo(reviews);
-      playlist.cueVideo(reviews, false);
-      playlist.play(0);
-      setTimeout(() => notify.display(`${reviews.length} Reviews Loaded!`), 5000);
+    if (!reviews) {
+      notify.display('no reviews available!');
+      return false;
+    }
 
-      // setupReviewMode();
-    } else notify.display('no reviews available!');
+    reviews = sortReviews(reviews);
+    if (!reviews.length) {
+      notify.display('no reviews available!');
+      return false;
+    }
+
+    playlist.entries = [];
+    root.innerHTML = '';
+    // playlist.cueVideo(reviews);
+    playlist.cueVideo(reviews, false);
+    playlist.play(0);
+    setTimeout(() => notify.display(`${reviews.length} Reviews Loaded!`), 5000);
+
+    // setupReviewMode();
+    return true;
   },
   loadPlaylistFromStorage() {
     playlist.entries = [];
@@ -223,7 +232,8 @@ export const playlist = {
 playlist.onStateChange.cs = [];
 
 export function setupReviewMode({ activate = true, loopCurrentSplit = false }) {
-  if (!activate) {
+  const deactivate = !activate;
+  if (deactivate) {
     clearInterval(unsubscribeToReview);
     return notify.display('Review: Stopped!');
   }
@@ -383,10 +393,10 @@ next.addEventListener('click', () => {
 reviewModeElement.addEventListener('click', (e) => {
   const modes = ['active', 'loop', 'inactive'];
   let index = (modes.indexOf(e.target.dataset.mode) + 1) % modes.length;
-  reviewModeElement.dataset.mode = modes[index];
   const value = modes[index];
   if (value === 'active') {
-    playlist.loadReviews();
+    const reviews = playlist.loadReviews();
+    if (!reviews) return;
     setupReviewMode({ activate: true });
     isReviewing = true;
   } else if (value === 'loop') {
@@ -398,6 +408,7 @@ reviewModeElement.addEventListener('click', (e) => {
     setupReviewMode({ activate: false });
     isReviewing = false;
   }
+  reviewModeElement.dataset.mode = modes[index];
 });
 
 trackingModeElement.addEventListener('click', (e) => {
