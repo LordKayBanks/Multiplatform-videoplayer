@@ -258,10 +258,11 @@ function watcherForReviewMode(loopCurrentSplit = false) {
     if (loopCurrentSplit) {
       if (video.currentTime >= video.origin.endTime - 5) {
         video.currentTime = video.origin.startTime;
-        studyStatisticsTracker();
+        studyStatisticsTracker(0.5);
       }
     } else {
       if (video.currentTime >= video.origin.endTime - 5) {
+        studyStatisticsTracker(0.25);
         playlist.play(playlist.index + 1);
         video.currentTime = video.origin.startTime;
         clearInterval(unsubscribeToReview);

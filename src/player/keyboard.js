@@ -419,6 +419,21 @@ function handleMultipleKeyPress(evt) {
     moveToNextPlaybackRange();
   }
 }
+
+// let timeTracker = 0;
+// function detectBackwardSkipSeek() {
+//   var previousTime = timeTracker;
+//   var currentTime = Math.round(this.currentTime);
+//   if (currentTime > previousTime + 20 || currentTime < previousTime - 20) {
+//     //  console.log(`${previousTime} -- ${currentTime}`);
+//     let enoughBackwardSeek = previousTime - currentTime >= 40;
+//     if (enoughBackwardSeek) {
+//       console.log('🚀 enoughBackwardSeek', enoughBackwardSeek);
+//       studyStatisticsTracker(0.25);
+//     }
+//   }
+//   timeTracker = currentTime;
+// }
 // ==================================================================
 // ==================================================================
 const rules = [
@@ -817,8 +832,11 @@ video.addEventListener('loadeddata', () => {
   notify.display(videoTitle, `[${toMinutesandSeconds(video.duration)}]`);
 });
 
+// video.addEventListener('timeupdate', detectBackwardSkipSeek);
+
 video.addEventListener('pause', () => {
-  !!replayConfig.unsubscribe && studyStatisticsTracker(0.5);
+  //   replayConfig.unsubscribe && studyStatisticsTracker(0.5);
+  studyStatisticsTracker(0.5);
 });
 
 video.addEventListener('play', () => {
