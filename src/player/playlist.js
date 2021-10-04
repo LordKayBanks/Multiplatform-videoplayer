@@ -15,6 +15,8 @@ const previous = document.getElementById('previous');
 const reviewModeElement = document.getElementById('reviewMode');
 const trackingModeElement = document.getElementById('trackingMode');
 const inputText = document.getElementById('external-link');
+const sortOptions = document.getElementById('review-sort-options');
+const sortOptionsContainer = document.getElementById('review-sort-options-container');
 const repeat = document.getElementById('repeat');
 const speed = document.getElementById('speed');
 const boost = document.getElementById('boost');
@@ -278,8 +280,9 @@ function watcherForReviewMode(loopCurrentSplit = false) {
 }
 
 function sortReviews(reviews) {
+  const sortCriteria = sortOptions.value;
   const MINIMUM_REVIEW_COUNT = 3;
-  return Object.keys(reviews)
+  const result = Object.keys(reviews)
     .map((key) => reviews[key])
     .map((review) => {
       let updatedReview = Object.keys(review.replayHistory).map((key) => ({
@@ -294,9 +297,26 @@ function sortReviews(reviews) {
       });
     })
     .flat()
-    .sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount)
     .filter((review) => review.replayCount >= MINIMUM_REVIEW_COUNT);
-  //  .sort((reviewA, reviewB) => reviewA.path.localeCompare(reviewB.path))
+  switch (sortCriteria) {
+    case 'count-descending':
+      return result.sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount);
+    case 'count-ascending':
+      return result.sort((reviewA, reviewB) => reviewA.replayCount - reviewB.replayCount);
+    case 'same-folder':
+    case 'same-parent-folder':
+      return result.sort((reviewA, reviewB) => reviewA.path.localeCompare(reviewB.path));
+    case 'time-descending':
+      return result.sort(
+        (reviewA, reviewB) => reviewB.lastReviewDate - reviewA.lastReviewDate
+      );
+    case 'time-ascending':
+      return result.sort(
+        (reviewA, reviewB) => reviewA.lastReviewDate - reviewB.lastReviewDate
+      );
+    default:
+      return result.sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount);
+  }
 
   //   .sort((reviewA, reviewB) => {
   //     return (
@@ -350,12 +370,15 @@ video.addEventListener('loadedmetadata', () => {
 });
 
 document.getElementById('p-button').addEventListener('change', (e) => {
-  //   playlist[e.target.checked ? 'open' : 'close']();
   if (e.target.checked) {
     inputText.classList.remove('input-text');
+    sortOptionsContainer.classList.remove('hide');
+
     return playlist['open']();
   } else {
     inputText.classList.add('input-text');
+    sortOptionsContainer.classList.add('hide');
+
     return playlist['close']();
   }
 });
@@ -388,6 +411,14 @@ next.addEventListener('click', () => {
     setTimeout(() => {
       setupReviewMode({});
     }, 1000);
+  }
+});
+
+sortOptions.addEventListener('change', (e) => {
+  //   setupReviewMode({ activate: true });
+  if (isReviewing) {
+    reviewModeElement.dataset.mode = 'inactive';
+    reviewModeElement.click();
   }
 });
 

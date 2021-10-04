@@ -14,6 +14,23 @@
       </iframe> -->
    </div>
    <div id="toolbar">
+      <div id='review-sort-options-container' class='hide'>
+         <div id='sort-text'>Sortby:</div>
+         <select name="review-sort" id="review-sort-options">
+            <optgroup>
+               <option value="count-descending">Count-desc</option>
+               <option value="count-ascending">Count-asc</option>
+            </optgroup>
+            <optgroup>
+               <option value="same-folder">Same-folder</option>
+               <option value="same-parent-folder">Same-parent-folder</option>
+            </optgroup>
+            <optgroup>
+               <option value="time-descending">Time-descending</option>
+               <option value="time-ascending">Time-ascending</option>
+            </optgroup>
+         </select>
+      </div>
       <ul id="playlist"></ul>
       <input type="text" id="external-link" class='input-text' placeholder="Paste link here..." name="text">
       </input>
