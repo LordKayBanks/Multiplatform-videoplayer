@@ -118,7 +118,7 @@ body[data-mode='expand'] #buttons {
   border-bottom: 2px solid #c1a1a180;
   padding: 0 10px !important;
   margin: 12px;
-  pointer-events: none;
+  /* pointer-events: none; */
   color: antiquewhite;
   font-size: 11px;
   text-align: center;

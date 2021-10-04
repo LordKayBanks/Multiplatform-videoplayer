@@ -5,5 +5,7 @@ import './keyboard.js';
 
 import drag from './drag.js';
 import playlist from './playlist.js';
+import { keepTrackOfReviews } from '../utility/startup.js';
 
+keepTrackOfReviews();
 drag.onDrag((files) => playlist.loadVideo(files));

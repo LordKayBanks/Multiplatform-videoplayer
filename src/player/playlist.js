@@ -8,7 +8,7 @@ import {
 /* global MediaMetadata */
 import notify from './notify.js';
 import * as utility from '../utility/index.js';
-import '../utility/seedData.js';
+// import '../utility/seedData.js';
 
 const root = document.getElementById('playlist');
 const video = document.querySelector('video');
@@ -219,6 +219,8 @@ export const playlist = {
       if (file.type === 'separator') {
         duration.textContent = ' ';
         li.classList.add('file-separator');
+        li.title = file.name;
+        li.disabled = true;
       }
       file.e = li;
       li.file = file;
@@ -243,7 +245,8 @@ export function setupReviewMode({ activate = true, loopCurrentSplit = false }) {
     trackingModeElement.dataset.mode = 'inactive';
     trackingMode(null, false);
   }
-  video.currentTime = video.origin.startTime;
+
+  if (video.origin.startTime) video.currentTime = video.origin.startTime;
   clearInterval(unsubscribeToReview);
 
   loopCurrentSplit && notify.display(`Reviews: Looping`);
