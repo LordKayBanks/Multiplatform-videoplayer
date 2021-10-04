@@ -7,6 +7,8 @@ import {
 
 /* global MediaMetadata */
 import notify from './notify.js';
+import * as utility from '../utility/index.js';
+import '../utility/seedData.js';
 
 const root = document.getElementById('playlist');
 const video = document.querySelector('video');
@@ -39,6 +41,7 @@ const scrollIntoView = (e) => {
   }
 };
 
+export const categorySeparator = { name: ' ', path: '', type: 'separator' };
 let isReviewing = false;
 let unsubscribeToReview = null;
 let unsubscribeSkipOnPlayError = null;
@@ -157,13 +160,9 @@ export const playlist = {
   },
   loadReviews() {
     let reviews = JSON.parse(localStorage.getItem('reviews'));
-    if (!reviews) {
-      notify.display('no reviews available!');
-      return false;
-    }
-
-    reviews = sortReviews(reviews);
-    if (!reviews.length) {
+    reviews = utility.sortReviews(reviews, sortOptions.value);
+    //  console.log('🚀 reviews', reviews);
+    if (!reviews || !reviews.length) {
       notify.display('no reviews available!');
       return false;
     }
@@ -196,7 +195,7 @@ export const playlist = {
     playlist.entries.push(...files);
     if (isNewFiles) {
       const temp = [...files].map(({ name, path, type, e }) => ({ name, path, type }));
-      temp.push({ name: ' ', path: '', type: 'separator' });
+      temp.push(categorySeparator);
 
       const oldPlaylist = JSON.parse(localStorage.getItem('playlist')) || [];
       const newPlaylist = [...oldPlaylist, ...temp];
@@ -277,58 +276,6 @@ function watcherForReviewMode(loopCurrentSplit = false) {
       }
     }
   }, 1000);
-}
-
-function sortReviews(reviews) {
-  const sortCriteria = sortOptions.value;
-  const MINIMUM_REVIEW_COUNT = 3;
-  const result = Object.keys(reviews)
-    .map((key) => reviews[key])
-    .map((review) => {
-      let updatedReview = Object.keys(review.replayHistory).map((key) => ({
-        //  [key]: review.replayHistory[key],
-        replayCount: review.replayHistory[key].count,
-        startTime: review.replayHistory[key].startTime,
-        endTime: review.replayHistory[key].endTime,
-        split: key,
-      }));
-      return updatedReview.map((split) => {
-        return { ...review, ...split };
-      });
-    })
-    .flat()
-    .filter((review) => review.replayCount >= MINIMUM_REVIEW_COUNT);
-  switch (sortCriteria) {
-    case 'count-descending':
-      return result.sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount);
-    case 'count-ascending':
-      return result.sort((reviewA, reviewB) => reviewA.replayCount - reviewB.replayCount);
-    case 'same-folder':
-    case 'same-parent-folder':
-      return result.sort((reviewA, reviewB) => reviewA.path.localeCompare(reviewB.path));
-    case 'time-descending':
-      return result.sort(
-        (reviewA, reviewB) => reviewB.lastReviewDate - reviewA.lastReviewDate
-      );
-    case 'time-ascending':
-      return result.sort(
-        (reviewA, reviewB) => reviewA.lastReviewDate - reviewB.lastReviewDate
-      );
-    default:
-      return result.sort((reviewA, reviewB) => reviewB.replayCount - reviewA.replayCount);
-  }
-
-  //   .sort((reviewA, reviewB) => {
-  //     return (
-  //       reviewB.replayCount - reviewA.replayCount || reviewA.path.localeCompare(reviewB.path)
-  //     );
-  //     //  const res = reviewB.replayCount - reviewA.replayCount;
-  //     //  if (res !== 0) {
-  //     //    return res;
-  //     //  } else {
-  //     //    return reviewA.path.localeCompare(reviewB.path);
-  //     //  }
-  //   });
 }
 
 // =====================================================
